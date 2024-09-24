@@ -35,7 +35,7 @@ public interface JvnRemoteCoord extends Remote {
 	* @param js  : the remote reference of the JVNServer
 	* @throws java.rmi.RemoteException,JvnException
 	**/
-	public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
+	public void jvnRegisterObject(String jon, JvnObject jo, int joi, JvnRemoteServer js)
 	throws java.rmi.RemoteException,jvn.JvnException; 
 	
 	/**
