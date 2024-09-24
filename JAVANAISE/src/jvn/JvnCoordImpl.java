@@ -224,6 +224,28 @@ implements JvnRemoteCoord{
 	public void jvnTerminate(JvnRemoteServer js)
 			throws java.rmi.RemoteException, JvnException {
 		// to be completed
+		if(objectsLockMap.isEmpty()) {
+			throw new JvnException("Le serveur JVN n'est pas connu par coordinateur");
+		}
+		else {
+			for(Map.Entry<Integer, HashMap<JvnRemoteServer, LockState>> objectsMap : objectsLockMap.entrySet()) {
+				for(Map.Entry<JvnRemoteServer, LockState> server : objectsMap.getValue().entrySet()) {
+					if(server.getKey() == js) {
+						if(server.getValue() == LockState.R) {
+							// TODO
+							// Wait for the resource after write has been finished
+							server.getKey().jvnInvalidateReader(objectsMap.getKey());
+						}
+						else if(server.getValue() == LockState.W) {
+							// TODO
+							// Wait for the resource after write has been finished
+							server.getKey().jvnInvalidateWriter(objectsMap.getKey());
+						}
+						objectsMap.getValue().remove(server.getKey());
+					}
+				}
+			}
+		}
 	}
 }
 
