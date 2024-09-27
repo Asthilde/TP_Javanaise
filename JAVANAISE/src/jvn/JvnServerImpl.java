@@ -27,9 +27,7 @@ implements JvnLocalServer, JvnRemoteServer{
 	private HashMap<Integer, JvnObject> objectStore; // Pour stocker les objets JVN
 	private HashMap<String, Integer> nameRegistry; // Pour stocker les noms
 
-	/**
-	 * 
-	 */
+
 	private static final long serialVersionUID = 1L;
 	// A JVN server is managed as a singleton 
 	private static JvnServerImpl js = null;
@@ -126,7 +124,7 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @param jo : the JVN object 
 	 * @throws JvnException
 	 **/
-	public  void jvnRegisterObject(String jon, JvnObject jo)
+	public void jvnRegisterObject(String jon, JvnObject jo)
 			throws jvn.JvnException {
 		// to be completed 
 		int id = jo.jvnGetObjectId();
@@ -196,7 +194,8 @@ implements JvnLocalServer, JvnRemoteServer{
 		} catch (Exception e) {
 			throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
 		}
-	}	
+	}
+
 	/**
 	 * Get a Write lock on a JVN object 
 	 * @param joi : the JVN object identification
