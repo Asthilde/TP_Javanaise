@@ -9,14 +9,21 @@
 
 package jvn;
 
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.HashMap;
 import java.io.*;
 
 
 
 public class JvnServerImpl 	
               extends UnicastRemoteObject 
-							implements JvnLocalServer, JvnRemoteServer{ 
+							implements JvnLocalServer, JvnRemoteServer{
+	
+	private JvnRemoteCoord coordinator; // Ref coord
+	private HashMap<Integer, JvnObject> objectStore; // Pour stocker les objets JVN
+    private HashMap<String, Integer> nameRegistry; // Pour stocker les noms
 	
   /**
 	 * 
@@ -32,6 +39,14 @@ public class JvnServerImpl
 	private JvnServerImpl() throws Exception {
 		super();
 		// to be completed
+	    try {
+	        Registry registry = LocateRegistry.getRegistry("localhost", 1099); // Port a corriger si besoin
+	        coordinator = (JvnRemoteCoord) registry.lookup("Coord");
+	        objectStore = new HashMap<>();
+            nameRegistry = new HashMap<>();
+	    } catch (Exception e) {
+	        throw new JvnException("Erreur lors de la connexion au coordinateur : " + e.getMessage());
+	    }
 	}
 	
   /**
@@ -57,6 +72,8 @@ public class JvnServerImpl
 	public  void jvnTerminate()
 	throws jvn.JvnException {
     // to be completed 
+		// Libérer toutes les ressources du serveur JVN
+	    // Notifier le coordinateur de la terminaison
 	} 
 	
 	/**
@@ -67,7 +84,14 @@ public class JvnServerImpl
 	public  JvnObject jvnCreateObject(Serializable o)
 	throws jvn.JvnException { 
 		// to be completed 
-		return null; 
+//		// Appel du coordinateur pour obtenir un ID
+//	    int id = coordinator.jvnGetObjectId();
+//	    JvnObject newObject = new // ne sais pas quelle methode appelee
+////        objectStore.put(id, newObject);
+//        return newObject;
+//	    
+//	    
+	    return null; 
 	}
 	
 	/**
@@ -79,6 +103,11 @@ public class JvnServerImpl
 	public  void jvnRegisterObject(String jon, JvnObject jo)
 	throws jvn.JvnException {
 		// to be completed 
+		int id = jo.jvnGetObjectId();
+        if (nameRegistry.containsKey(jon)) {
+            throw new JvnException("Nom enregistré");
+        }
+        nameRegistry.put(jon, id);
 	}
 	
 	/**
@@ -90,7 +119,11 @@ public class JvnServerImpl
 	public  JvnObject jvnLookupObject(String jon)
 	throws jvn.JvnException {
     // to be completed 
-		return null;
+		Integer id = nameRegistry.get(jon);
+        if (id == null) {
+            throw new JvnException("Objet non trouvé pour le nom : " + jon);
+        }
+        return objectStore.get(id);
 	}	
 	
 	/**
@@ -102,7 +135,13 @@ public class JvnServerImpl
    public Serializable jvnLockRead(int joi)
 	 throws JvnException {
 		// to be completed 
-		return null;
+	   JvnObject obj = objectStore.get(joi);
+       if (obj == null) {
+           throw new JvnException("Objet non trouvé");
+       }
+       // A revoir. Sellon les logiques de changements d'etat
+       // return obj....
+       return null;
 
 	}	
 	/**
@@ -114,7 +153,12 @@ public class JvnServerImpl
    public Serializable jvnLockWrite(int joi)
 	 throws JvnException {
 		// to be completed 
-		return null;
+	   JvnObject obj = objectStore.get(joi);
+       if (obj == null) {
+           throw new JvnException("Objet non trouvé");
+       }
+       //  A revoir. Sellon les logiques de changements d'etat
+       return null;
 	}	
 
 	
@@ -128,7 +172,14 @@ public class JvnServerImpl
   public void jvnInvalidateReader(int joi)
 	throws java.rmi.RemoteException,jvn.JvnException {
 		// to be completed 
+	  JvnObject obj = objectStore.get(joi);
+	    if (obj == null) {
+	        throw new JvnException("Objet non trouvé pour ID : " + joi);
+	    }
+
+	    // synchroniser et attendre la fin de toutes operations de lecture avant de recuperer le verrou
 	};
+	
 	    
 	/**
 	* Invalidate the Write lock of the JVN object identified by id 
