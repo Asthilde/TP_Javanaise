@@ -28,7 +28,7 @@ implements JvnRemoteCoord{
 	private static final long serialVersionUID = 1L;
 	private static int objectId;
 	private static HashMap<Integer, JvnObject> objectsIdMap;
-	private static HashMap<String, JvnObject> objectsNameMap;
+	private static HashMap<String, Integer> objectsNameMap;
 	private static HashMap<Integer, HashMap<JvnRemoteServer, LockState>> objectsLockMap;
 
 
@@ -45,7 +45,7 @@ implements JvnRemoteCoord{
 			objectsIdMap = new HashMap<Integer, JvnObject>();
 		}
 		if(objectsNameMap == null) {
-			objectsNameMap = new HashMap<String, JvnObject>();
+			objectsNameMap = new HashMap<String, Integer>();
 		}
 		if(objectsLockMap == null) {
 			objectsLockMap = new HashMap<Integer, HashMap<JvnRemoteServer, LockState>>();
@@ -79,7 +79,7 @@ implements JvnRemoteCoord{
 			JvnCoordImpl.objectsIdMap.put(joi, jo);
 		}
 		if(!JvnCoordImpl.objectsNameMap.containsKey(jon)) {
-			JvnCoordImpl.objectsNameMap.put(jon, jo);
+			JvnCoordImpl.objectsNameMap.put(jon, joi);
 		}
 		if(!JvnCoordImpl.objectsLockMap.containsKey(joi)) {
 			HashMap<JvnRemoteServer, LockState> serverLock = new HashMap<JvnRemoteServer, LockState>();
@@ -97,10 +97,15 @@ implements JvnRemoteCoord{
 	 **/
 	public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
 			throws java.rmi.RemoteException,jvn.JvnException{
-		// A quoi sert je JvnRemoteServer ici ?
 		// to be completed 
 		if(JvnCoordImpl.objectsNameMap.containsKey(jon)) {
-			return JvnCoordImpl.objectsNameMap.get(jon);
+			Integer objId = JvnCoordImpl.objectsNameMap.get(jon);
+			HashMap<JvnRemoteServer, LockState> serversMap = objectsLockMap.get(objId);
+			if(serversMap != null && !serversMap.containsKey(js)) {
+				serversMap.put(js, LockState.NL);
+				objectsLockMap.put(objId,serversMap);
+			}
+			return JvnCoordImpl.objectsIdMap.get(objId);
 		}
 		else { 
 			throw new JvnException("L'objet n'est pas référencé dans le coordinateur");
@@ -132,8 +137,15 @@ implements JvnRemoteCoord{
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
 							// TODO
-							// Wait for the resource after write has been finished
-							//Recuperer l'objet nouvellement à jour dans server.getKey()
+							try {
+								// Wait
+								objectsIdMap.get(joi).wait();
+								// Récupérer la référence vers le nouvel objet (comme ça ??) A TESTER PARTOUT !
+								objectsIdMap.get(joi).jvnGetSharedObject();
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 							server.getKey().jvnInvalidateWriterForReader(joi);
 							currentLocks.put(server.getKey(), LockState.R);
 							currentLocks.put(js, LockState.R);
