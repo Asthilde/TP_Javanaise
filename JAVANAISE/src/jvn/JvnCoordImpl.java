@@ -83,10 +83,9 @@ implements JvnRemoteCoord{
 		}
 		if(!JvnCoordImpl.objectsLockMap.containsKey(joi)) {
 			HashMap<JvnRemoteServer, LockState> serverLock = new HashMap<JvnRemoteServer, LockState>();
-			serverLock.put(js, LockState.NL);
+			serverLock.put(js, LockState.W);
 			JvnCoordImpl.objectsLockMap.put(joi, serverLock);
 		}
-		// Faire peut être une classe pour avoir l'objet, son id son nom et le serveur qui l'appelle
 	}
 
 	/**
@@ -136,17 +135,13 @@ implements JvnRemoteCoord{
 				if(currentLocks.containsValue(LockState.W)) {
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
-							// TODO
 							try {
-								// Wait
 								objectsIdMap.get(joi).wait();
-								// Récupérer la référence vers le nouvel objet (comme ça ??) A TESTER PARTOUT !
-								objectsIdMap.get(joi).jvnGetSharedObject();
+								JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
+								objectsIdMap.put(joi, newObject);
 							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-							server.getKey().jvnInvalidateWriterForReader(joi);
 							currentLocks.put(server.getKey(), LockState.R);
 							currentLocks.put(js, LockState.R);
 							objectsLockMap.put(joi,currentLocks);
@@ -189,15 +184,14 @@ implements JvnRemoteCoord{
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
 							// TODO
-							// Wait for the resource after write has been finished
-							//Recuperer l'objet nouvellement à jour dans server.getKey()
 							try {
 								objectsIdMap.get(joi).wait();
+								JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriter(joi);
+								objectsIdMap.put(joi, newObject);
 							} catch (InterruptedException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-							server.getKey().jvnInvalidateWriter(joi);
 							currentLocks.remove(server.getKey());
 							currentLocks.put(js, LockState.W);
 							objectsLockMap.put(joi,currentLocks);
@@ -208,10 +202,15 @@ implements JvnRemoteCoord{
 				else if(currentLocks.containsValue(LockState.R)) {
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.R && server.getKey() != js) {
-							// TODO
-							// Wait for the resource after write has been finished
-							server.getKey().jvnInvalidateReader(joi);
-							currentLocks.remove(server.getKey());
+							try {
+								// Potentiellement erreur si itération sur un truc supprimé
+								objectsIdMap.get(joi).wait();
+								server.getKey().jvnInvalidateReader(joi);
+								currentLocks.remove(server.getKey());
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 						}
 					}
 					currentLocks.put(js, LockState.W);
@@ -257,6 +256,21 @@ implements JvnRemoteCoord{
 					}
 				}
 			}
+		}
+	}
+
+	public static void main (String[] args) {
+		try {
+			JvnCoordImpl coordinator = new JvnCoordImpl();
+			JvnCoordImpl coordStub = (JvnCoordImpl) UnicastRemoteObject.exportObject(coordinator, 0);
+
+            Registry registry = LocateRegistry.getRegistry();
+            registry.bind("Coordinator", coordStub);
+            System.out.println("Coordinator ready");
+
+		} catch(Exception e) {
+			System.err.println(e.toString());
+			e.getStackTrace();
 		}
 	}
 }
