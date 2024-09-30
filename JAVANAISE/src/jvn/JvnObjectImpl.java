@@ -21,7 +21,6 @@ public class JvnObjectImpl implements JvnObject {
 	@Override
 	public void jvnLockRead() throws JvnException {
 		// TODO Auto-generated method stub
-
 	}
 
 	@Override
@@ -39,33 +38,70 @@ public class JvnObjectImpl implements JvnObject {
 	@Override
 	public int jvnGetObjectId() throws JvnException {
 		// TODO Auto-generated method stub
-		return 0;
+		return id;
 	}
 
 	@Override
 	public Serializable jvnGetSharedObject() throws JvnException {
 		// TODO Auto-generated method stub
-		return null;
+		if (object == null) {
+			throw new JvnException("L'objet partagé n'est pas instancié !");
+		}
+		return object;
 	}
 
 	@Override
-	public void jvnInvalidateReader() throws JvnException {
+	public synchronized void jvnInvalidateReader() throws JvnException {
 		// TODO Auto-generated method stub
-
+		if(lockState != LockState.R || lockState != LockState.RC || lockState != LockState.RWC) {
+			throw new JvnException("L'objet n'est pas verrouillé en lecture sur cette machine !");
+		}
+		lockState = LockState.NL;
+		try {
+			this.wait();
+		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		this.notify(); //ou notifyAll
 	}
 
 	@Override
-	public Serializable jvnInvalidateWriter() throws JvnException {
+	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
 		// TODO Auto-generated method stub
-		return null;
+		if(lockState != LockState.W || lockState != LockState.WC || lockState != LockState.RWC) {
+			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
+		}
+		try {
+			this.wait();
+			// object = ... Mise à jour de l'objet partagé ?
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		lockState = LockState.NL;
+		this.notify(); //ou notifyAll
+		return this.lockState; // ou this.jvnGetSharedObject(); -> Ce qui modifie le coordinateur si c'est le cas !
 	}
 
 	@Override
-	public Serializable jvnInvalidateWriterForReader() throws JvnException {
+	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
 		// TODO Auto-generated method stub
-		return null;
+		if(lockState != LockState.W || lockState != LockState.WC || lockState != LockState.RWC) {
+			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
+		}
+		try {
+			this.wait();
+			// object = ... Mise à jour de l'objet partagé ?
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		lockState = LockState.RC;
+		this.notify(); //ou notifyAll
+		return this.lockState; // ou this.jvnGetSharedObject(); -> Ce qui modifie le coordinateur si c'est le cas !
 	}
-
+	
 	@Override
 	public Serializable jvnGetState() throws JvnException {
 		// TODO Auto-generated method stub
@@ -75,7 +111,6 @@ public class JvnObjectImpl implements JvnObject {
 	@Override
 	public void jvnChangeState(Serializable newState) throws JvnException {
 		// TODO Auto-generated method stub
-
+		lockState = (LockState) newState;
 	}
-
 }
