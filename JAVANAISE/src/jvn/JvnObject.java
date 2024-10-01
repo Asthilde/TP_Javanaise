@@ -76,5 +76,20 @@ public interface JvnObject extends Serializable {
 	* @throws JvnException
 	**/
    public Serializable jvnInvalidateWriterForReader()
-	 throws jvn.JvnException;	
+	 throws jvn.JvnException;
+   
+   /**
+    * Get the current state of the JVN object.
+    * @return the current state of the JVN object.
+    * @throws JvnException
+    */
+   public Serializable jvnGetState() throws JvnException;
+
+   /**
+    * Change the state of the JVN object.
+    * @param newState the new state to set for the JVN object.
+    * @throws JvnException
+    */
+   public void jvnChangeState(Serializable newState) throws JvnException;
+	    
 }

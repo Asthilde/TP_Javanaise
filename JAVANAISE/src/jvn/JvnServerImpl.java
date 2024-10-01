@@ -9,10 +9,12 @@
 
 package jvn;
 
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
+import java.util.Map;
 import java.io.*;
 
 
@@ -91,7 +93,16 @@ public class JvnServerImpl
 //        return newObject;
 //	    
 //	    
-	    return null; 
+		JvnObject jvnObj = null;
+		try {
+			jvnObj = (JvnObject) o;
+			objectStore.put(coordinator.jvnGetObjectId(), jvnObj);
+			jvnObj.jvnLockRead();
+		} catch (RemoteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return jvnObj; 
 	}
 	
 	/**
@@ -139,9 +150,23 @@ public class JvnServerImpl
        if (obj == null) {
            throw new JvnException("Objet non trouvé");
        }
-       // A revoir. Sellon les logiques de changements d'etat
-       // return obj....
-       return null;
+       if(obj.jvnGetState()== LockState.NL) {
+    	   try {
+               Serializable newState = coordinator.jvnLockRead(joi, js);
+               String objectName=null;
+               for (Map.Entry<String, Integer> entry : nameRegistry.entrySet()) {
+                   if (entry.getValue().equals(joi)) {
+                       objectName = entry.getKey();
+                       break;
+                   }
+               }
+               obj= coordinator.jvnLookupObject(objectName, js);
+               obj.jvnChangeState(newState);
+           } catch (Exception e) {
+               throw new JvnException("Erreur lors de la demande de verrou de lecture au coordinateur : " + e.getMessage());
+           }
+       }
+       return obj.jvnGetState();
 
 	}	
 	/**
@@ -157,8 +182,24 @@ public class JvnServerImpl
        if (obj == null) {
            throw new JvnException("Objet non trouvé");
        }
-       //  A revoir. Sellon les logiques de changements d'etat
-       return null;
+       
+       if(obj.jvnGetState() == LockState.R || obj.jvnGetState() == LockState.RC || obj.jvnGetState()== LockState.NL) {
+    	   try {
+               Serializable newState = coordinator.jvnLockWrite(joi, js);
+               String objectName = null;
+               for (Map.Entry<String, Integer> entry : nameRegistry.entrySet()) {
+                   if (entry.getValue().equals(joi)) {
+                       objectName = entry.getKey();
+                       break;
+                   }
+               }
+               obj= coordinator.jvnLookupObject(objectName, js);
+               obj.jvnChangeState(newState);
+           } catch (Exception e) {
+               throw new JvnException("Erreur lors de la demande de verrou d'écriture au coordinateur : " + e.getMessage());
+           }
+       }
+       return obj.jvnGetState();
 	}	
 
 	
@@ -177,7 +218,19 @@ public class JvnServerImpl
 	        throw new JvnException("Objet non trouvé pour ID : " + joi);
 	    }
 
-	    // synchroniser et attendre la fin de toutes operations de lecture avant de recuperer le verrou
+	    synchronized (obj) {
+	        while (obj.jvnGetState() == LockState.R || obj.jvnGetState() == LockState.RC) {
+	            try {
+	                obj.wait(); // Wait the unlockReader
+	            } catch (InterruptedException e) {
+	                throw new JvnException("Interruption pendant l'attente de la libération des verrous de lecture");
+	            }
+	        }
+
+	        obj.jvnChangeState(LockState.NL);
+	    }
+	    obj.notifyAll();
+
 	};
 	
 	    
@@ -190,7 +243,26 @@ public class JvnServerImpl
   public Serializable jvnInvalidateWriter(int joi)
 	throws java.rmi.RemoteException,jvn.JvnException { 
 		// to be completed 
-		return null;
+	  JvnObject obj = objectStore.get(joi);
+	    if (obj == null) {
+	        throw new JvnException("Objet non trouvé pour ID : " + joi);
+	    }
+
+	    synchronized (obj) {
+	        while (obj.jvnGetState() == LockState.W || obj.jvnGetState() == LockState.WC || obj.jvnGetState() == LockState.RWC) {
+	            try {
+	                obj.wait(); // Wait the unlockWriter
+	            } catch (InterruptedException e) {
+	                throw new JvnException("Interruption pendant l'attente de la libération des verrous de lecture");
+	            }
+	        }
+	        if(obj.jvnGetState() == LockState.W || obj.jvnGetState() == LockState.WC) {
+	        obj.jvnChangeState(LockState.NL);
+	        } else {
+		        obj.jvnChangeState(LockState.R);
+	        }
+	    }
+	    return obj.jvnGetState();
 	};
 	
 	/**
@@ -202,7 +274,22 @@ public class JvnServerImpl
    public Serializable jvnInvalidateWriterForReader(int joi)
 	 throws java.rmi.RemoteException,jvn.JvnException { 
 		// to be completed 
-		return null;
+	   JvnObject obj = objectStore.get(joi);
+	    if (obj == null) {
+	        throw new JvnException("Objet non trouvé pour ID : " + joi);
+	    }
+
+	    synchronized (obj) {
+	        while (obj.jvnGetState() == LockState.W || obj.jvnGetState() == LockState.WC || obj.jvnGetState() == LockState.RWC) {
+	            try {
+	                obj.wait(); // Wait the unlockReader
+	            } catch (InterruptedException e) {
+	                throw new JvnException("Interruption pendant l'attente de la libération des verrous de lecture");
+	            }
+	        }
+		        obj.jvnChangeState(LockState.R);
+	        }
+	    return obj.jvnGetState();
 	 };
 
 }
