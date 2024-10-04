@@ -74,8 +74,23 @@ public class JvnServerImpl
 	public  void jvnTerminate()
 	throws jvn.JvnException {
     // to be completed 
-		// Libérer toutes les ressources du serveur JVN
-	    // Notifier le coordinateur de la terminaison
+		try {
+	        // Libérer toutes les ressources détenues par ce serveur JVN
+	        for (Map.Entry<Integer, JvnObject> entry : objectStore.entrySet()) {
+	            JvnObject obj = entry.getValue();
+	            synchronized (obj) {
+	                if (obj.jvnGetState() == LockState.R || obj.jvnGetState() == LockState.W|| obj.jvnGetState() == LockState.RC|| obj.jvnGetState() == LockState.RWC|| obj.jvnGetState() == LockState.Wc) {
+	                    obj.jvnChangeState(LockState.NL);
+	                }
+	            }
+	        }
+
+	        // Notifier le coordinateur que le serveur se termine
+	        coordinator.jvnTerminate(js);
+
+	    } catch (RemoteException e) {
+	        throw new JvnException("Erreur lors de la terminaison : " + e.getMessage());
+	    }
 	} 
 	
 	/**
@@ -85,14 +100,7 @@ public class JvnServerImpl
 	**/
 	public  JvnObject jvnCreateObject(Serializable o)
 	throws jvn.JvnException { 
-		// to be completed 
-//		// Appel du coordinateur pour obtenir un ID
-//	    int id = coordinator.jvnGetObjectId();
-//	    JvnObject newObject = new // ne sais pas quelle methode appelee
-////        objectStore.put(id, newObject);
-//        return newObject;
-//	    
-//	    
+		// to be completed     
 		JvnObject jvnObj = null;
 		try {
 			jvnObj = (JvnObject) o;
@@ -127,15 +135,46 @@ public class JvnServerImpl
 	* @return the JVN object 
 	* @throws JvnException
 	**/
-	public  JvnObject jvnLookupObject(String jon)
-	throws jvn.JvnException {
-    // to be completed 
-		Integer id = nameRegistry.get(jon);
-        if (id == null) {
-            throw new JvnException("Objet non trouvé pour le nom : " + jon);
-        }
-        return objectStore.get(id);
-	}	
+	public JvnObject jvnLookupObject(String jon) throws JvnException {
+	    Integer id = nameRegistry.get(jon);
+	    if (id == null) {
+	        throw new JvnException("Objet non trouvé pour le nom : " + jon);
+	    }
+
+	    JvnObject localObject = objectStore.get(id);
+
+	    if (localObject == null) {
+	        // Si l'objet n'est pas présent dans le magasin local
+	        try {
+	            localObject = coordinator.jvnLookupObject(jon, js);
+	            if (localObject != null) {
+	                // Ajouter l'objet mis à jour dans le magasin local
+	                objectStore.put(id, localObject);
+	            } else {
+	                throw new JvnException("Le coordinateur n'a pas pu retourner l'objet pour le nom : " + jon);
+	            }
+	        } catch (Exception e) {
+	            throw new JvnException("Erreur lors de la récupération de l'objet du coordinateur : " + e.getMessage());
+	        }
+	    } else {
+	        // Vérifier si l'état nécessite une version plus récente
+	        if (localObject.jvnGetState() == LockState.NL) {
+	            try {
+	                JvnObject updatedObject = coordinator.jvnLookupObject(jon, js);
+	                if (updatedObject != null) {
+	                    // Mise à jour de l'objet dans le magasin local
+	                    objectStore.put(id, updatedObject);
+	                    localObject = updatedObject;
+	                }
+	            } catch (Exception e) {
+	                throw new JvnException("Erreur lors de la récupération de l'objet mis à jour du coordinateur : " + e.getMessage());
+	            }
+	        }
+	    }
+
+	    return localObject;
+	}
+	
 	
 	/**
 	* Get a Read lock on a JVN object 
@@ -146,27 +185,40 @@ public class JvnServerImpl
    public Serializable jvnLockRead(int joi)
 	 throws JvnException {
 		// to be completed 
-	   JvnObject obj = objectStore.get(joi);
-       if (obj == null) {
-           throw new JvnException("Objet non trouvé");
-       }
-       if(obj.jvnGetState()== LockState.NL) {
-    	   try {
-               Serializable newState = coordinator.jvnLockRead(joi, js);
-               String objectName=null;
-               for (Map.Entry<String, Integer> entry : nameRegistry.entrySet()) {
-                   if (entry.getValue().equals(joi)) {
-                       objectName = entry.getKey();
-                       break;
-                   }
-               }
-               obj= coordinator.jvnLookupObject(objectName, js);
-               obj.jvnChangeState(newState);
-           } catch (Exception e) {
-               throw new JvnException("Erreur lors de la demande de verrou de lecture au coordinateur : " + e.getMessage());
-           }
-       }
-       return obj.jvnGetState();
+	   // Obtenir l'objet localement à partir du store
+	    JvnObject obj = objectStore.get(joi);
+	    if (obj == null) {
+	        throw new JvnException("Objet non trouvé");
+	    }
+
+	    if (obj.jvnGetState() == LockState.NL) {
+	        try {
+	            Serializable newState = coordinator.jvnLockRead(joi, js);
+	            String objectName = null;
+
+	            // Récupérer le nom de l'objet à partir de nameRegistry
+	            for (Map.Entry<String, Integer> entry : nameRegistry.entrySet()) {
+	                if (entry.getValue().equals(joi)) {
+	                    objectName = entry.getKey();
+	                    break;
+	                }
+	            }
+
+	            obj = coordinator.jvnLookupObject(objectName, js);
+	            if (obj != null) {
+	                objectStore.put(joi, obj);
+	            }
+	            obj.jvnChangeState(newState);
+	        } catch (Exception e) {
+	            throw new JvnException("Erreur lors de la demande de verrou de lecture au coordinateur : " + e.getMessage());
+	        }
+	    } else if (obj.jvnGetState() == LockState.RC || obj.jvnGetState() == LockState.R) {
+	        obj.jvnChangeState(LockState.R);
+	    } else if (obj.jvnGetState() == LockState.WC || obj.jvnGetState() == LockState.RWC) {
+	        obj.jvnChangeState(LockState.RWC);
+	    }
+
+	    return obj.jvnGetState();
 
 	}	
 	/**
@@ -179,27 +231,43 @@ public class JvnServerImpl
 	 throws JvnException {
 		// to be completed 
 	   JvnObject obj = objectStore.get(joi);
-       if (obj == null) {
-           throw new JvnException("Objet non trouvé");
-       }
-       
-       if(obj.jvnGetState() == LockState.R || obj.jvnGetState() == LockState.RC || obj.jvnGetState()== LockState.NL) {
-    	   try {
-               Serializable newState = coordinator.jvnLockWrite(joi, js);
-               String objectName = null;
-               for (Map.Entry<String, Integer> entry : nameRegistry.entrySet()) {
-                   if (entry.getValue().equals(joi)) {
-                       objectName = entry.getKey();
-                       break;
-                   }
-               }
-               obj= coordinator.jvnLookupObject(objectName, js);
-               obj.jvnChangeState(newState);
-           } catch (Exception e) {
-               throw new JvnException("Erreur lors de la demande de verrou d'écriture au coordinateur : " + e.getMessage());
-           }
-       }
-       return obj.jvnGetState();
+	    if (obj == null) {
+	        throw new JvnException("Objet non trouvé");
+	    }
+
+	    if (obj.jvnGetState() == LockState.NL) {
+	        try {
+	            Serializable newState = coordinator.jvnLockWrite(joi, js);
+	            String objectName = null;
+
+	            for (Map.Entry<String, Integer> entry : nameRegistry.entrySet()) {
+	                if (entry.getValue().equals(joi)) {
+	                    objectName = entry.getKey();
+	                    break;
+	                }
+	            }
+
+	            obj = coordinator.jvnLookupObject(objectName, js);
+	            if (obj != null) {
+	                objectStore.put(joi, obj);
+	            }
+	            obj.jvnChangeState(newState);
+	        } catch (Exception e) {
+	            throw new JvnException("Erreur lors de la demande de verrou d'écriture au coordinateur : " + e.getMessage());
+	        }
+	    }else if(obj.jvnGetState() == LockState.R || obj.jvnGetState() == LockState.RC) {
+	    	try {
+	            Serializable newState = coordinator.jvnLockWrite(joi, js);
+	            obj.jvnChangeState(newState);
+	        } catch (Exception e) {
+	            throw new JvnException("Erreur lors de la demande de verrou d'écriture au coordinateur : " + e.getMessage());
+	        }
+	    }
+	    else if (obj.jvnGetState() == LockState.RWC || obj.jvnGetState() == LockState.WC) {
+	        obj.jvnChangeState(LockState.W);
+	    }
+
+	    return obj.jvnGetState();
 	}	
 
 	
@@ -219,7 +287,7 @@ public class JvnServerImpl
 	    }
 
 	    synchronized (obj) {
-	        while (obj.jvnGetState() == LockState.R || obj.jvnGetState() == LockState.RC) {
+	        while (obj.jvnGetState() == LockState.R || obj.jvnGetState() == LockState.RC || obj.jvnGetState() == LockState.RWC) {
 	            try {
 	                obj.wait(); // Wait the unlockReader
 	            } catch (InterruptedException e) {
@@ -230,7 +298,6 @@ public class JvnServerImpl
 	        obj.jvnChangeState(LockState.NL);
 	    }
 	    obj.notifyAll();
-
 	};
 	
 	    
