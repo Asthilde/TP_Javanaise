@@ -188,8 +188,8 @@ implements JvnLocalServer, JvnRemoteServer{
 			throw new JvnException("Objet non trouvé dans la machine");
 		}
 		try {
-			Serializable updatedSharedObject = coordinator.jvnLockRead(joi, js);
-			return updatedSharedObject;
+			JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
+			return updatedObject.jvnGetSharedObject();
 		} catch (Exception e) {
 			throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
 		}
@@ -210,8 +210,8 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 
 		try {
-			Serializable updatedSharedObject = coordinator.jvnLockWrite(joi, js);
-			return updatedSharedObject;
+			JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
+			return updatedObject.jvnGetSharedObject();
 		} catch (Exception e) {
 			throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
 		}
@@ -265,7 +265,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			}
 			obj.notify();
 		}
-		return obj.jvnGetSharedObject();
+		return obj;
 	};
 
 	/**
@@ -293,7 +293,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			}
 			obj.notify();
 		}
-		return obj.jvnGetSharedObject();
+		return obj;
 	};
 
 }
