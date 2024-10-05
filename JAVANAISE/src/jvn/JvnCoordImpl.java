@@ -10,7 +10,9 @@
 package jvn;
 
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.io.Serializable;
 import java.rmi.registry.*;
@@ -129,30 +131,28 @@ implements JvnRemoteCoord{
 				HashMap<JvnRemoteServer, LockState> lockStateMap = new HashMap<JvnRemoteServer, LockState> ();
 				lockStateMap.put(js, LockState.R);
 				objectsLockMap.put(joi,lockStateMap);
-				return LockState.R;
+				return objFound;
 			}
 			else if(currentLocks.get(js) == LockState.NL || currentLocks.get(js) == null) {
 				if(currentLocks.containsValue(LockState.W)) {
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
-							try {
-								objectsIdMap.get(joi).wait();
-								JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
+							JvnObject newObject;
+							synchronized(objFound) {
+								newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
 								objectsIdMap.put(joi, newObject);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
 							}
 							currentLocks.put(server.getKey(), LockState.R);
 							currentLocks.put(js, LockState.R);
 							objectsLockMap.put(joi,currentLocks);
-							return LockState.R;
+							return newObject;
 						}
 					}
 				}
 				else {
 					currentLocks.put(js, LockState.R);
 					objectsLockMap.put(joi,currentLocks);
-					return LockState.R;
+					return objFound;
 				}
 			}
 		}
@@ -177,50 +177,45 @@ implements JvnRemoteCoord{
 				HashMap<JvnRemoteServer, LockState> lockStateMap = new HashMap<JvnRemoteServer, LockState> ();
 				lockStateMap.put(js, LockState.W);
 				objectsLockMap.put(joi,lockStateMap);
-				return LockState.W;
+				return objFound;
 			}
 			else if(currentLocks.get(js) == LockState.NL || currentLocks.get(js) == null) {
 				if(currentLocks.containsValue(LockState.W)) {
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
-							// TODO
-							try {
-								objectsIdMap.get(joi).wait();
-								JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriter(joi);
+							JvnObject newObject;
+							synchronized(objFound) {
+								newObject = (JvnObject) server.getKey().jvnInvalidateWriter(joi);
 								objectsIdMap.put(joi, newObject);
-							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
 							}
 							currentLocks.remove(server.getKey());
 							currentLocks.put(js, LockState.W);
 							objectsLockMap.put(joi,currentLocks);
-							return LockState.W;
+							return newObject;
 						}
 					}
 				}
 				else if(currentLocks.containsValue(LockState.R)) {
+					List<JvnRemoteServer> serversTab = new ArrayList<JvnRemoteServer>();
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.R && server.getKey() != js) {
-							try {
-								// Potentiellement erreur si itération sur un truc supprimé
-								objectsIdMap.get(joi).wait();
+							synchronized(objFound) {
 								server.getKey().jvnInvalidateReader(joi);
-								currentLocks.remove(server.getKey());
-							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
+								serversTab.add(server.getKey());
 							}
 						}
 					}
+					for(JvnRemoteServer server : serversTab) {
+						currentLocks.remove(server);
+					}
 					currentLocks.put(js, LockState.W);
 					objectsLockMap.put(joi,currentLocks);
-					return LockState.W;
+					return objFound;
 				}
 				else {
 					currentLocks.put(js, LockState.W);
 					objectsLockMap.put(joi,currentLocks);
-					return LockState.W;
+					return objFound;
 				}
 			}
 		}
@@ -264,9 +259,9 @@ implements JvnRemoteCoord{
 			JvnCoordImpl coordinator = new JvnCoordImpl();
 			JvnCoordImpl coordStub = (JvnCoordImpl) UnicastRemoteObject.exportObject(coordinator, 0);
 
-            Registry registry = LocateRegistry.getRegistry();
-            registry.bind("Coordinator", coordStub);
-            System.out.println("Coordinator ready");
+			Registry registry = LocateRegistry.getRegistry();
+			registry.bind("Coordinator", coordStub);
+			System.out.println("Coordinator ready");
 
 		} catch(Exception e) {
 			System.err.println(e.toString());
