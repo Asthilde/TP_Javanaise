@@ -21,18 +21,39 @@ public class JvnObjectImpl implements JvnObject {
 	@Override
 	public void jvnLockRead() throws JvnException {
 		// TODO Auto-generated method stub
+		if(lockState == LockState.R || lockState == LockState.RC || lockState == LockState.W) {
+			lockState = LockState.R;
+		} else if (lockState == LockState.RC) {
+			lockState = LockState.RWC;
+		} else if (lockState == LockState.NL) {
+			object = js.jvnLockRead(id);
+			lockState = LockState.R;
+		}
 	}
 
 	@Override
 	public void jvnLockWrite() throws JvnException {
 		// TODO Auto-generated method stub
-
+		if(lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
+			lockState = LockState.W;
+		} else if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.NL) {
+			object = js.jvnLockWrite(id);
+			lockState = LockState.W;
+		}
 	}
 
 	@Override
 	public void jvnUnLock() throws JvnException {
 		// TODO Auto-generated method stub
-
+		if(lockState == LockState.NL) {
+			throw new JvnException("La machine courante ne détient pas de verrou sur l'objet.");
+		} else if(lockState == LockState.W) {
+			lockState = LockState.WC;
+			this.notify(); // ou notifyAll()
+		} else if(lockState == LockState.R) {
+			lockState = LockState.RC;
+			this.notify(); // ou notifyAll()
+		}
 	}
 
 	@Override
@@ -53,59 +74,63 @@ public class JvnObjectImpl implements JvnObject {
 	@Override
 	public synchronized void jvnInvalidateReader() throws JvnException {
 		// TODO Auto-generated method stub
-		if(lockState != LockState.R || lockState != LockState.RC || lockState != LockState.RWC) {
+		if(lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			throw new JvnException("L'objet n'est pas verrouillé en lecture sur cette machine !");
 		}
-		lockState = LockState.NL;
-		try {
-			this.wait();
-		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-			e.printStackTrace();
+		while(lockState == LockState.R) {
+			try {
+				this.wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
+		lockState = LockState.NL;
 		this.notify(); //ou notifyAll
 	}
 
 	@Override
 	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
 		// TODO Auto-generated method stub
-		if(lockState != LockState.W || lockState != LockState.WC || lockState != LockState.RWC) {
+		if(lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
-		try {
-			this.wait();
-			// object = ... Mise à jour de l'objet partagé ?
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		while(lockState == LockState.W) {
+			try {
+				this.wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
 		lockState = LockState.NL;
 		this.notify(); //ou notifyAll
-		return this.lockState; // ou this.jvnGetSharedObject(); -> Ce qui modifie le coordinateur si c'est le cas !
+		return lockState; 
 	}
 
 	@Override
 	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
 		// TODO Auto-generated method stub
-		if(lockState != LockState.W || lockState != LockState.WC || lockState != LockState.RWC) {
+		if(lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
-		try {
-			this.wait();
-			// object = ... Mise à jour de l'objet partagé ?
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		while(lockState == LockState.W) {
+			try {
+				this.wait();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
-		lockState = LockState.RC;
+		if(lockState == LockState.RWC) {
+			lockState = LockState.R;
+		} else {
+			lockState = LockState.RC;
+		}
 		this.notify(); //ou notifyAll
-		return this.lockState; // ou this.jvnGetSharedObject(); -> Ce qui modifie le coordinateur si c'est le cas !
+		return lockState;
 	}
-	
+
 	@Override
 	public Serializable jvnGetState() throws JvnException {
-		// TODO Auto-generated method stub
-		return null;
+		return lockState;
 	}
 
 	@Override
