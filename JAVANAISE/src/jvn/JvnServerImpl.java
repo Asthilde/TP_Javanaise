@@ -27,7 +27,6 @@ implements JvnLocalServer, JvnRemoteServer{
 	private HashMap<Integer, JvnObject> objectStore; // Pour stocker les objets JVN
 	private HashMap<String, Integer> nameRegistry; // Pour stocker les noms
 
-
 	private static final long serialVersionUID = 1L;
 	// A JVN server is managed as a singleton 
 	private static JvnServerImpl js = null;
