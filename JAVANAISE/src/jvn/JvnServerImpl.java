@@ -37,12 +37,9 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	private JvnServerImpl() throws Exception {
 		super();
-		// to be completed
 		try {
 			Registry registry = LocateRegistry.getRegistry("localhost", 1099); // Port a corriger si besoin
-		    System.out.println("Tentative de recherche du coordinateur...");
 			coordinator = (JvnRemoteCoord) registry.lookup("Coordinator");
-		    System.out.println("Connecté au coordinateur avec succès.");
 			objectStore = new HashMap<Integer, JvnObject>();
 			nameRegistry = new HashMap<String, Integer>();
 		} catch (Exception e) {
@@ -56,19 +53,19 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws JvnException
 	 **/
 	public static JvnServerImpl jvnGetServer() {
-	    if (js == null) {
-	        synchronized (JvnServerImpl.class) {
-	            if (js == null) { // Double-check locking
-	                try {
-	                    js = new JvnServerImpl();
-	                } catch (Exception e) {
-	                    System.err.println("Error initializing JVN server: " + e.getMessage());
-	                    return null;
-	                }
-	            }
-	        }
-	    }
-	    return js;
+		if (js == null) {
+			synchronized (JvnServerImpl.class) {
+				if (js == null) { // Double-check locking
+					try {
+						js = new JvnServerImpl();
+					} catch (Exception e) {
+						System.err.println("Error initializing JVN server: " + e.getMessage());
+						return null;
+					}
+				}
+			}
+		}
+		return js;
 	}
 
 
@@ -78,9 +75,7 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	public void jvnTerminate()
 			throws jvn.JvnException {
-		// to be completed 
 		try {
-			// Libérer toutes les ressources détenues par ce serveur JVN
 			for (Map.Entry<Integer, JvnObject> entry : objectStore.entrySet()) {
 				JvnObject obj = entry.getValue();
 				synchronized (obj) {
@@ -94,7 +89,6 @@ implements JvnLocalServer, JvnRemoteServer{
 			}
 			nameRegistry.clear();
 			objectStore.clear();
-			// Notifier le coordinateur que le serveur se termine
 			coordinator.jvnTerminate(js);
 		} catch (RemoteException e) {
 			throw new JvnException("Erreur lors de la terminaison : " + e.getMessage());
@@ -111,8 +105,6 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	public JvnObject jvnCreateObject(Serializable o)
 			throws jvn.JvnException { 
-		System.out.print("debut de creation");
-		// to be completed     
 		JvnObject jvnObj = null;
 		try {
 			jvnObj = new JvnObjectImpl(o, coordinator.jvnGetObjectId(), this);
@@ -122,8 +114,6 @@ implements JvnLocalServer, JvnRemoteServer{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		System.out.print("fin de creation");
-
 		return jvnObj; 
 	}
 
@@ -134,12 +124,12 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws JvnException
 	 **/
 	public void jvnRegisterObject(String jon, JvnObject jo) throws JvnException {
-	    int id = jo.jvnGetObjectId();
-	    if (nameRegistry.containsKey(jon)) {
-	        throw new JvnException("Nom enregistré");
-	    }
-	    nameRegistry.put(jon, id);
-	    try {
+		int id = jo.jvnGetObjectId();
+		if (nameRegistry.containsKey(jon)) {
+			throw new JvnException("Nom enregistré");
+		}
+		nameRegistry.put(jon, id);
+		try {
 			coordinator.jvnRegisterObject(jon, jo, id, this);
 		} catch (RemoteException e) {
 			// TODO Auto-generated catch block
@@ -148,7 +138,6 @@ implements JvnLocalServer, JvnRemoteServer{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-	    System.out.println("Objet enregistré : " + jon + " avec ID : " + id);
 	}
 
 
@@ -160,19 +149,12 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @return the JVN object 
 	 * @throws JvnException
 	 **/
-	public JvnObject jvnLookupObject(String jon) throws JvnException {
-		System.out.println("Recherche de l'objet : " + jon);
-	    System.out.println("Objets enregistrés : " + objectStore.keySet());
-	    System.out.println("État du registre : " + nameRegistry);
-	    
-	    Integer id = nameRegistry.get(jon);
-	    System.out.println("Id : " + id);
+	public JvnObject jvnLookupObject(String jon) throws JvnException {    
+		Integer id = nameRegistry.get(jon);
 
-	    if (id == null) {
-	        System.out.println("Aucun ID trouvé pour le nom : " + jon);
-	        return null;
-//	        throw new JvnException("Objet non trouvé pour le nom : " + jon);
-	    }
+		if (id == null) {
+			return null;
+		}
 
 		JvnObject localObject = objectStore.get(id);
 
@@ -218,12 +200,12 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 		synchronized (obj) {
 
-		try {
-			JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
-			return updatedObject.jvnGetSharedObject();
-		} catch (Exception e) {
-			throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
-		}
+			try {
+				JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
+				return updatedObject.jvnGetSharedObject();
+			} catch (Exception e) {
+				throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
+			}
 		}
 	}
 
@@ -242,12 +224,12 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 		synchronized (obj) {
 
-		try {
-			JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
-			return updatedObject.jvnGetSharedObject();
-		} catch (Exception e) {
-			throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
-		}
+			try {
+				JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
+				return updatedObject.jvnGetSharedObject();
+			} catch (Exception e) {
+				throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
+			}
 		}
 	}	
 

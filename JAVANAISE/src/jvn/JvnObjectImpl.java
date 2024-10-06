@@ -2,14 +2,14 @@ package jvn;
 
 import java.io.Serializable;
 
-public class JvnObjectImpl implements JvnObject {
+public class JvnObjectImpl implements JvnObject, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	private LockState lockState;
 	private int id;
 	private Serializable object;
-	private JvnLocalServer js;
+	private transient JvnLocalServer js;
 
 	public JvnObjectImpl(Serializable sharedObject, int id, JvnLocalServer js) {
 		lockState = LockState.W;
@@ -45,7 +45,6 @@ public class JvnObjectImpl implements JvnObject {
 	@Override
 	public synchronized void  jvnUnLock() throws JvnException {
 		// TODO Auto-generated method stub
-	    System.out.println("Debut unlock");
 		if(lockState == LockState.NL) {
 			throw new JvnException("La machine courante ne détient pas de verrou sur l'objet.");
 		} else if(lockState == LockState.W) {
@@ -55,7 +54,6 @@ public class JvnObjectImpl implements JvnObject {
 			lockState = LockState.RC;
 			this.notify(); // ou notifyAll()
 		}
-	    System.out.println("Fin unlock");
 	}
 
 	@Override

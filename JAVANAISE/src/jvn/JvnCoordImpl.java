@@ -41,7 +41,6 @@ implements JvnRemoteCoord{
 	 * @throws JvnException
 	 **/
 	private JvnCoordImpl() throws Exception {
-		// to be completed
 		if(objectId == 0) {
 			objectId = 1;
 		}
@@ -63,7 +62,6 @@ implements JvnRemoteCoord{
 	 **/
 	public int jvnGetObjectId()
 			throws java.rmi.RemoteException,jvn.JvnException {
-		// to be completed 
 		JvnCoordImpl.objectId += 1;
 		return JvnCoordImpl.objectId-1;
 	}
@@ -78,7 +76,6 @@ implements JvnRemoteCoord{
 	 **/
 	public void jvnRegisterObject(String jon, JvnObject jo, int joi, JvnRemoteServer js)
 			throws java.rmi.RemoteException,jvn.JvnException{
-		// to be completed 
 		if(!JvnCoordImpl.objectsIdMap.containsKey(joi)) {
 			JvnCoordImpl.objectsIdMap.put(joi, jo);
 		}
@@ -100,7 +97,6 @@ implements JvnRemoteCoord{
 	 **/
 	public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
 			throws java.rmi.RemoteException,jvn.JvnException{
-		// to be completed 
 		if(JvnCoordImpl.objectsNameMap.containsKey(jon)) {
 			Integer objId = JvnCoordImpl.objectsNameMap.get(jon);
 			HashMap<JvnRemoteServer, LockState> serversMap = objectsLockMap.get(objId);
@@ -124,7 +120,6 @@ implements JvnRemoteCoord{
 	 **/
 	public Serializable jvnLockRead(int joi, JvnRemoteServer js)
 			throws java.rmi.RemoteException, JvnException{
-		// to be completed
 		JvnObject objFound = JvnCoordImpl.objectsIdMap.get(joi); 
 		if(objFound != null)
 		{
@@ -170,7 +165,6 @@ implements JvnRemoteCoord{
 	 **/
 	public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
 			throws java.rmi.RemoteException, JvnException{
-		// to be completed
 		JvnObject objFound = JvnCoordImpl.objectsIdMap.get(joi); 
 		if(objFound != null)
 		{
@@ -231,7 +225,6 @@ implements JvnRemoteCoord{
 	 **/
 	public void jvnTerminate(JvnRemoteServer js)
 			throws java.rmi.RemoteException, JvnException {
-		// to be completed
 		if(objectsLockMap.isEmpty()) {
 			throw new JvnException("Le serveur JVN n'est pas connu par coordinateur");
 		}
@@ -240,13 +233,9 @@ implements JvnRemoteCoord{
 				for(Map.Entry<JvnRemoteServer, LockState> server : objectsMap.getValue().entrySet()) {
 					if(server.getKey() == js) {
 						if(server.getValue() == LockState.R) {
-							// TODO
-							// Wait for the resource after write has been finished
 							server.getKey().jvnInvalidateReader(objectsMap.getKey());
 						}
 						else if(server.getValue() == LockState.W) {
-							// TODO
-							// Wait for the resource after write has been finished
 							server.getKey().jvnInvalidateWriter(objectsMap.getKey());
 						}
 						objectsMap.getValue().remove(server.getKey());
@@ -257,45 +246,35 @@ implements JvnRemoteCoord{
 	}
 
 	public static void main(String[] args) {
-	    try {
-	        JvnCoordImpl coordinator = new JvnCoordImpl();
+		try {
+			JvnCoordImpl coordinator = new JvnCoordImpl();
+			
+			Registry registry;
 
-	        final Registry[] registryHolder = new Registry[1]; // Use an array to hold the registry
+			try {
+				registry = LocateRegistry.getRegistry();
+			} catch (RemoteException e) {
+				// If the registry is not available, create it
+				registry = LocateRegistry.createRegistry(1099);
+			}
 
-	        try {
-	            registryHolder[0] = LocateRegistry.getRegistry();
-	            registryHolder[0].list(); // Check if the registry is accessible
-	        } catch (RemoteException e) {
-	            // If the registry is not available, create it
-	            registryHolder[0] = LocateRegistry.createRegistry(1099);
-	        }
+			try {
+				registry.lookup("Coordinator"); // This will throw if not found
+				System.out.println("Coordinator is already bound, unbinding...");
+				registry.unbind("Coordinator"); // Unbind if already exists
+			} catch (NotBoundException e) {
+				// Ignore if the Coordinator is not yet bound
+			}
 
-	        try {
-	            registryHolder[0].lookup("Coordinator"); // This will throw if not found
-	            System.out.println("Coordinator is already bound, unbinding...");
-	            registryHolder[0].unbind("Coordinator"); // Unbind if already exists
-	        } catch (NotBoundException e) {
-	            // Ignore if the Coordinator is not yet bound
-	        }
+			// Bind the server directly to the registry
+			registry.bind("Coordinator", coordinator);
+			System.out.println("Coordinator ready");
 
-	        // Bind the server directly to the registry
-	        registryHolder[0].bind("Coordinator", coordinator);
-	        System.out.println("Coordinator ready");
 
-//	        // Add a shutdown hook for cleanup
-//	        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-//	            try {
-//	                registryHolder[0].unbind("Coordinator");
-//	                System.out.println("Coordinator unbound from registry.");
-//	            } catch (Exception e) {
-//	                System.err.println("Error during unbinding: " + e);
-//	            }
-//	        }));
-
-	    } catch (Exception e) {
-	        System.err.println("Exception in main: " + e);
-	        e.printStackTrace();
-	    }
+		} catch (Exception e) {
+			System.err.println("Exception in main: " + e);
+			e.printStackTrace();
+		}
 	}
 
 }
