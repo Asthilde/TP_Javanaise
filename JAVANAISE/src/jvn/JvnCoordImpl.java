@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.io.Serializable;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.rmi.registry.*;
 import java.rmi.server.*;
 
@@ -254,20 +256,48 @@ implements JvnRemoteCoord{
 		}
 	}
 
-	public static void main (String[] args) {
-		try {
-			JvnCoordImpl coordinator = new JvnCoordImpl();
-			JvnCoordImpl coordStub = (JvnCoordImpl) UnicastRemoteObject.exportObject(coordinator, 0);
+	public static void main(String[] args) {
+	    try {
+	        JvnCoordImpl coordinator = new JvnCoordImpl();
 
-			Registry registry = LocateRegistry.getRegistry();
-			registry.bind("Coordinator", coordStub);
-			System.out.println("Coordinator ready");
+	        final Registry[] registryHolder = new Registry[1]; // Use an array to hold the registry
 
-		} catch(Exception e) {
-			System.err.println(e.toString());
-			e.getStackTrace();
-		}
+	        try {
+	            registryHolder[0] = LocateRegistry.getRegistry();
+	            registryHolder[0].list(); // Check if the registry is accessible
+	        } catch (RemoteException e) {
+	            // If the registry is not available, create it
+	            registryHolder[0] = LocateRegistry.createRegistry(1099);
+	        }
+
+	        try {
+	            registryHolder[0].lookup("Coordinator"); // This will throw if not found
+	            System.out.println("Coordinator is already bound, unbinding...");
+	            registryHolder[0].unbind("Coordinator"); // Unbind if already exists
+	        } catch (NotBoundException e) {
+	            // Ignore if the Coordinator is not yet bound
+	        }
+
+	        // Bind the server directly to the registry
+	        registryHolder[0].bind("Coordinator", coordinator);
+	        System.out.println("Coordinator ready");
+
+//	        // Add a shutdown hook for cleanup
+//	        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+//	            try {
+//	                registryHolder[0].unbind("Coordinator");
+//	                System.out.println("Coordinator unbound from registry.");
+//	            } catch (Exception e) {
+//	                System.err.println("Error during unbinding: " + e);
+//	            }
+//	        }));
+
+	    } catch (Exception e) {
+	        System.err.println("Exception in main: " + e);
+	        e.printStackTrace();
+	    }
 	}
+
 }
 
 

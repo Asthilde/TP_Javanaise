@@ -28,19 +28,40 @@ public class Irc {
   **/
 	public static void main(String argv[]) {
 	   try {
-		   
+	        System.out.println("Tentative d'initialisation de JVN...");
+
 		// initialize JVN
 		JvnServerImpl js = JvnServerImpl.jvnGetServer();
+        System.out.println("JVN initialisé avec succès.");
+
 		
-		// look up the IRC object in the JVN server
-		// if not found, create it, and register it in the JVN server
-		JvnObject jo = js.jvnLookupObject("IRC");
+//        // Tentative de création et d'enregistrement de l'objet IRC
+//        System.out.println("Création de l'objet IRC...");
+//        JvnObject jo = js.jvnCreateObject(new Sentence());
+//        if (jo == null) {
+//            throw new Exception("L'objet IRC n'a pas pu être créé.");
+//        }
+//
+//        // Enregistrez l'objet
+//        js.jvnRegisterObject("IRC", jo);
+//        System.out.println("Objet IRC enregistré avec succès.");
+
+        // Maintenant, vous pouvez le rechercher
+        System.out.println("Tentative de recherche de l'objet IRC...");
+        JvnObject jo = js.jvnLookupObject("IRC");
 		   
 		if (jo == null) {
-			jo = js.jvnCreateObject((Serializable) new Sentence());
-			// after creation, I have a write lock on the object
-			jo.jvnUnLock();
-			js.jvnRegisterObject("IRC", jo);
+		    System.out.println("Objet non trouvé, création de l'objet IRC...");
+		    jo = js.jvnCreateObject(new Sentence());
+		    if (jo == null) {
+		        throw new Exception("L'objet IRC n'a pas pu être créé.");
+		    }
+		    // Déverrouillez l'objet
+		    jo.jvnUnLock();
+		    System.out.println("Test unlock");
+		    // Enregistrez l'objet
+		    js.jvnRegisterObject("IRC", jo);
+		    System.out.println("Objet IRC enregistré avec succès.");
 		}
 		// create the graphical part of the Chat application
 		 new Irc(jo);
@@ -127,6 +148,9 @@ public class Irc {
 	   try {	
 		// get the value to be written from the buffer
     String s = irc.data.getText();
+	   System.out.println("test lockWrite : " + s );
+	   System.out.println("test lockWrite : " + irc.sentence.jvnGetObjectId() );
+
         	
     // lock the object in write mode
 		irc.sentence.jvnLockWrite();
