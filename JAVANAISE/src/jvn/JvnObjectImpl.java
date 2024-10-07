@@ -49,10 +49,10 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 			throw new JvnException("La machine courante ne détient pas de verrou sur l'objet.");
 		} else if(lockState == LockState.W) {
 			lockState = LockState.WC;
-			this.notify(); // ou notifyAll()
+			this.notify(); 
 		} else if(lockState == LockState.R) {
 			lockState = LockState.RC;
-			this.notify(); // ou notifyAll()
+			this.notify();
 		}
 	}
 
@@ -85,7 +85,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 			}
 		}
 		lockState = LockState.NL;
-		this.notify(); //ou notifyAll
 	}
 
 	@Override
@@ -102,7 +101,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 			}
 		}
 		lockState = LockState.NL;
-		this.notify(); //ou notifyAll
 		return lockState; 
 	}
 
@@ -124,7 +122,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		} else {
 			lockState = LockState.RC;
 		}
-		this.notify(); //ou notifyAll
 		return lockState;
 	}
 

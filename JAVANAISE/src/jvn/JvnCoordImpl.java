@@ -248,29 +248,26 @@ implements JvnRemoteCoord{
 	public static void main(String[] args) {
 		try {
 			JvnCoordImpl coordinator = new JvnCoordImpl();
-			
-			Registry registry;
+
+			final Registry[] registryHolder = new Registry[1]; // Use an array to hold the registry
 
 			try {
-				registry = LocateRegistry.getRegistry();
+				registryHolder[0] = LocateRegistry.getRegistry();
+				registryHolder[0].list(); // Check if the registry is accessible
 			} catch (RemoteException e) {
 				// If the registry is not available, create it
-				registry = LocateRegistry.createRegistry(1099);
+				registryHolder[0] = LocateRegistry.createRegistry(1099);
 			}
-
 			try {
-				registry.lookup("Coordinator"); // This will throw if not found
+				registryHolder[0].lookup("Coordinator"); // This will throw if not found
 				System.out.println("Coordinator is already bound, unbinding...");
-				registry.unbind("Coordinator"); // Unbind if already exists
+				registryHolder[0].unbind("Coordinator"); // Unbind if already exists
 			} catch (NotBoundException e) {
 				// Ignore if the Coordinator is not yet bound
 			}
-
 			// Bind the server directly to the registry
-			registry.bind("Coordinator", coordinator);
+			registryHolder[0].bind("Coordinator", coordinator);
 			System.out.println("Coordinator ready");
-
-
 		} catch (Exception e) {
 			System.err.println("Exception in main: " + e);
 			e.printStackTrace();
