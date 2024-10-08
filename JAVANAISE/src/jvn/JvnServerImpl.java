@@ -15,6 +15,9 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Map;
+
+import irc.Sentence;
+
 import java.io.*;
 
 
@@ -107,7 +110,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			throws jvn.JvnException { 
 		JvnObject jvnObj = null;
 		try {
-			jvnObj = new JvnObjectImpl(o, coordinator.jvnGetObjectId(), this);
+			jvnObj = new JvnObjectImpl((Sentence) o, coordinator.jvnGetObjectId(), js);
 			objectStore.put(jvnObj.jvnGetObjectId(), jvnObj);
 			jvnObj.jvnLockWrite();
 		} catch (RemoteException e) {
@@ -130,7 +133,7 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 		nameRegistry.put(jon, id);
 		try {
-			coordinator.jvnRegisterObject(jon, jo, id, this);
+			coordinator.jvnRegisterObject(jon, jo, id, js);
 		} catch (RemoteException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -149,20 +152,25 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @return the JVN object 
 	 * @throws JvnException
 	 **/
-	public JvnObject jvnLookupObject(String jon) throws JvnException {    
+	public JvnObject jvnLookupObject(String jon) throws JvnException {   
 		Integer id = nameRegistry.get(jon);
-
-		if (id == null) {
-			return null;
+		JvnObject localObject = null;
+		
+		if (id != null) {
+			localObject = objectStore.get(id);
 		}
-
-		JvnObject localObject = objectStore.get(id);
-
+		
 		if (localObject == null) {
 			// Si l'objet n'est pas présent dans le magasin local
 			try {
 				localObject = coordinator.jvnLookupObject(jon, js);
-				objectStore.put(id, localObject);
+				if(localObject == null) {
+					return null;
+				}
+				localObject = new JvnObjectImpl(((Sentence)localObject.jvnGetSharedObject()), localObject.jvnGetObjectId(), js);
+				localObject.jvnChangeState(LockState.NL);
+				objectStore.put(localObject.jvnGetObjectId(), localObject);
+				nameRegistry.put(jon, localObject.jvnGetObjectId());
 			} catch (Exception e) {
 				throw new JvnException("Erreur lors de la récupération de l'objet du coordinateur : " + e.getMessage());
 			}
@@ -172,9 +180,10 @@ implements JvnLocalServer, JvnRemoteServer{
 				try {
 					JvnObject updatedObject = coordinator.jvnLookupObject(jon, js);
 					if (updatedObject != null) {
+						localObject = new JvnObjectImpl(((Sentence)updatedObject.jvnGetSharedObject()), updatedObject.jvnGetObjectId(), js);
+						localObject.jvnChangeState(LockState.NL);
 						// Mise à jour de l'objet dans le magasin local
-						objectStore.put(id, updatedObject);
-						localObject = updatedObject;
+						objectStore.put(id, localObject);
 					}
 				} catch (Exception e) {
 					throw new JvnException("Erreur lors de la récupération de l'objet mis à jour du coordinateur : " + e.getMessage());
@@ -193,13 +202,11 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	public Serializable jvnLockRead(int joi)
 			throws JvnException {
-		// to be completed 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé dans la machine");
 		}
 		synchronized (obj) {
-
 			try {
 				JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
 				return updatedObject.jvnGetSharedObject();
@@ -217,18 +224,17 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	public Serializable jvnLockWrite(int joi)
 			throws JvnException {
-		// to be completed 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé dans la machine");
 		}
 		synchronized (obj) {
-
 			try {
 				JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
 				return updatedObject.jvnGetSharedObject();
 			} catch (Exception e) {
 				throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
+				//Mettre des sysout pour comprendre pourquoi l'objet n'est pas récupéré !
 			}
 		}
 	}	
@@ -248,7 +254,6 @@ implements JvnLocalServer, JvnRemoteServer{
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
-
 		synchronized (obj) {
 			obj.jvnInvalidateReader();
 			obj.notify();
@@ -264,12 +269,11 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	public Serializable jvnInvalidateWriter(int joi)
 			throws java.rmi.RemoteException,jvn.JvnException { 
-		// to be completed 
+
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
-
 		synchronized (obj) {
 			while(obj.jvnInvalidateWriter() != LockState.NL) {
 				try {
@@ -297,15 +301,15 @@ implements JvnLocalServer, JvnRemoteServer{
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
-
 		synchronized (obj) {
-			while(obj.jvnInvalidateWriterForReader() != LockState.R || obj.jvnInvalidateWriterForReader() != LockState.RC || obj.jvnInvalidateWriterForReader() != LockState.NL) {
+			while(obj.jvnInvalidateWriterForReader() != LockState.R && obj.jvnInvalidateWriterForReader() != LockState.RC && obj.jvnInvalidateWriterForReader() != LockState.NL) {
 				try {
 					obj.wait();
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+				// Maintenant que j'ai debuggué il faut comprendre pourquoi l'objet n'est pas dans le coordinateur !
 			}
 			obj.notify();
 		}

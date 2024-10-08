@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public class JvnObjectImpl implements JvnObject, Serializable {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 3L;
 
 	private LockState lockState;
 	private int id;
@@ -26,6 +26,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		} else if (lockState == LockState.RC) {
 			lockState = LockState.RWC;
 		} else if (lockState == LockState.NL) {
+			System.out.println("Je demande l'accès en lecture au coordinateur");
 			object = js.jvnLockRead(id);
 			lockState = LockState.R;
 		}
@@ -37,13 +38,14 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		if(lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			lockState = LockState.W;
 		} else if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.NL) {
+			System.out.println("Je demande l'accès en écriture au coordinateur avec mon id : " + id);
 			object = js.jvnLockWrite(id);
 			lockState = LockState.W;
 		}
 	}
 
 	@Override
-	public synchronized void  jvnUnLock() throws JvnException {
+	public synchronized void jvnUnLock() throws JvnException {
 		// TODO Auto-generated method stub
 		if(lockState == LockState.NL) {
 			throw new JvnException("La machine courante ne détient pas de verrou sur l'objet.");
@@ -122,6 +124,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		} else {
 			lockState = LockState.RC;
 		}
+		//A voir s'il faut remettre le notify...
 		return lockState;
 	}
 

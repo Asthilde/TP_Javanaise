@@ -36,6 +36,7 @@ public class Irc {
 			JvnObject jo = js.jvnLookupObject("IRC");
 
 			if (jo == null) {
+				System.out.println("Objet non trouvé");
 				jo = js.jvnCreateObject(new Sentence());
 				// after creation, I have a write lock on the object
 				jo.jvnUnLock();
