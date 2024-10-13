@@ -1,5 +1,6 @@
 package jvn;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
@@ -10,7 +11,6 @@ import irc.SentenceInterface;
 public class JvnProxy implements InvocationHandler {
 	private JvnObject obj;
 	private JvnProxy(JvnObject obj) { this.obj = obj; }
-
 	public static SentenceInterface  newInstance(JvnObject object) throws JvnException {
 		return (SentenceInterface) java.lang.reflect.Proxy.newProxyInstance(((SentenceInterface) object.jvnGetSharedObject()).getClass().getClassLoader(), ((SentenceInterface) object.jvnGetSharedObject()).getClass().getInterfaces(), new JvnProxy(object));
 	}
@@ -36,5 +36,4 @@ public class JvnProxy implements InvocationHandler {
 		}
 		return result;
 	}
-
 }

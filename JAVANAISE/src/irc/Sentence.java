@@ -8,8 +8,9 @@
 
 package irc;
 
-public class Sentence implements SentenceInterface {
+import irc.Annotation;
 
+public class Sentence implements SentenceInterface {
 	private static final long serialVersionUID = 1L;
 	String 	data;
 
