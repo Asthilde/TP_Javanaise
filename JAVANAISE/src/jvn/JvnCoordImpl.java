@@ -28,10 +28,6 @@ public class JvnCoordImpl
 extends UnicastRemoteObject 
 implements JvnRemoteCoord{
 
-
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 2L;
 	private static int objectId;
 	private static HashMap<Integer, JvnObject> objectsIdMap;
@@ -144,7 +140,7 @@ implements JvnRemoteCoord{
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
 							JvnObject newObject;
-							synchronized(objFound) { //Voir s'il faut modifier les méthodes comme pour lookUp
+							synchronized(objFound) {
 								newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
 								objectsIdMap.put(joi, newObject);
 							}
@@ -252,27 +248,22 @@ implements JvnRemoteCoord{
 		try {
 			JvnCoordImpl coordinator = new JvnCoordImpl();
 
-			final Registry[] registryHolder = new Registry[1]; // Use an array to hold the registry
+			final Registry[] registryHolder = new Registry[1];
 
 			try {
 				registryHolder[0] = LocateRegistry.getRegistry();
-				registryHolder[0].list(); // Check if the registry is accessible
+				registryHolder[0].list();
 			} catch (RemoteException e) {
-				// If the registry is not available, create it
 				registryHolder[0] = LocateRegistry.createRegistry(1099);
 			}
 			try {
-				registryHolder[0].lookup("Coordinator"); // This will throw if not found
-				System.out.println("Coordinator is already bound, unbinding...");
-				registryHolder[0].unbind("Coordinator"); // Unbind if already exists
-			} catch (NotBoundException e) {
-				// Ignore if the Coordinator is not yet bound
-			}
-			// Bind the server directly to the registry
+				registryHolder[0].lookup("Coordinator");
+				System.out.println("Le coordinateur est déja lié...");
+				registryHolder[0].unbind("Coordinator");
+			} catch (NotBoundException e) {}
 			registryHolder[0].bind("Coordinator", coordinator);
-			System.out.println("Coordinator ready");
+			System.out.println("Coordinateur ready");
 		} catch (Exception e) {
-			System.err.println("Exception in main: " + e);
 			e.printStackTrace();
 		}
 	}
