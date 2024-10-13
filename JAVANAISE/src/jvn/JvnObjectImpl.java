@@ -20,13 +20,11 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public void jvnLockRead() throws JvnException {
-		// TODO Auto-generated method stub
 		if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.W) {
 			lockState = LockState.R;
 		} else if (lockState == LockState.RC) {
 			lockState = LockState.RWC;
 		} else if (lockState == LockState.NL) {
-			System.out.println("Je demande l'accès en lecture au coordinateur");
 			object = js.jvnLockRead(id);
 			lockState = LockState.R;
 		}
@@ -34,11 +32,9 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public void jvnLockWrite() throws JvnException {
-		// TODO Auto-generated method stub
 		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			lockState = LockState.W;
 		} else if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.NL) {
-			System.out.println("Je demande l'accès en écriture au coordinateur avec mon id : " + id);
 			object = js.jvnLockWrite(id);
 			lockState = LockState.W;
 		}
@@ -46,7 +42,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public synchronized void jvnUnLock() throws JvnException {
-		// TODO Auto-generated method stub
 		if (lockState == LockState.NL) {
 			throw new JvnException("La machine courante ne détient pas de verrou sur l'objet.");
 		} else if (lockState == LockState.W) {
@@ -60,13 +55,11 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public int jvnGetObjectId() throws JvnException {
-		// TODO Auto-generated method stub
 		return id;
 	}
 
 	@Override
 	public Serializable jvnGetSharedObject() throws JvnException {
-		// TODO Auto-generated method stub
 		if (object == null) {
 			throw new JvnException("L'objet partagé n'est pas instancié !");
 		}
@@ -75,7 +68,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public synchronized void jvnInvalidateReader() throws JvnException {
-		// TODO Auto-generated method stub
 		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			throw new JvnException("L'objet n'est pas verrouillé en lecture sur cette machine !");
 		}
@@ -91,7 +83,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
-		// TODO Auto-generated method stub
 		if (lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
@@ -108,7 +99,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
-		// TODO Auto-generated method stub
 		if (lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
@@ -124,7 +114,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		} else {
 			lockState = LockState.RC;
 		}
-		// A voir s'il faut remettre le notify...
 		return lockState;
 	}
 
@@ -135,7 +124,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 
 	@Override
 	public void jvnChangeState(Serializable newState) throws JvnException {
-		// TODO Auto-generated method stub
 		lockState = (LockState) newState;
 	}
 }

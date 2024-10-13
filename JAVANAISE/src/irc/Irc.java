@@ -56,10 +56,9 @@ public class Irc {
 	 * @throws JvnException 
 	 **/
 	public Irc(JvnObject jo) throws JvnException {
-		System.out.println("La sentence du jvnObject vaut : " + ((Sentence) jo.jvnGetSharedObject()).read());
 		sentence = jo;
 		frame=new Frame();
-		
+
 		frame.setLayout(new GridLayout(1,1));
 		text=new TextArea(10,60);
 		text.setEditable(false);
@@ -95,7 +94,7 @@ class readListener implements ActionListener {
 	 **/
 	public void actionPerformed (ActionEvent e) {
 		try {
-			SentenceInterface s = JvnProxy.newInstance(irc.sentence);			// lock the object in read mode
+			SentenceInterface s = JvnProxy.newInstance(irc.sentence);
 			String res = s.read();
 			irc.data.setText(res);
 			irc.text.append(res+"\n");
@@ -120,7 +119,7 @@ class writeListener implements ActionListener {
 	 **/
 	public void actionPerformed (ActionEvent e) {
 		try {	
-			SentenceInterface s = JvnProxy.newInstance(irc.sentence);			// lock the object in read mode
+			SentenceInterface s = JvnProxy.newInstance(irc.sentence);
 			s.write(irc.data.getText());
 		} catch (JvnException je) {
 			System.out.println("IRC problem  : " + je.getMessage());

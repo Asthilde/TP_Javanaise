@@ -96,7 +96,6 @@ implements JvnLocalServer, JvnRemoteServer{
 		} catch (RemoteException e) {
 			throw new JvnException("Erreur lors de la terminaison : " + e.getMessage());
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	} 
@@ -114,7 +113,6 @@ implements JvnLocalServer, JvnRemoteServer{
 			objectStore.put(jvnObj.jvnGetObjectId(), jvnObj);
 			jvnObj.jvnLockWrite();
 		} catch (RemoteException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return jvnObj; 
@@ -135,10 +133,8 @@ implements JvnLocalServer, JvnRemoteServer{
 		try {
 			coordinator.jvnRegisterObject(jon, jo, id, js);
 		} catch (RemoteException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (JvnException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -155,11 +151,11 @@ implements JvnLocalServer, JvnRemoteServer{
 	public JvnObject jvnLookupObject(String jon) throws JvnException {   
 		Integer id = nameRegistry.get(jon);
 		JvnObject localObject = null;
-		
+
 		if (id != null) {
 			localObject = objectStore.get(id);
 		}
-		
+
 		if (localObject == null) {
 			// Si l'objet n'est pas présent dans le magasin local
 			try {
@@ -234,7 +230,6 @@ implements JvnLocalServer, JvnRemoteServer{
 				return updatedObject.jvnGetSharedObject();
 			} catch (Exception e) {
 				throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
-				//Mettre des sysout pour comprendre pourquoi l'objet n'est pas récupéré !
 			}
 		}
 	}	
@@ -249,7 +244,6 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	public void jvnInvalidateReader(int joi)
 			throws java.rmi.RemoteException,jvn.JvnException {
-		// to be completed 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
@@ -279,7 +273,6 @@ implements JvnLocalServer, JvnRemoteServer{
 				try {
 					obj.wait();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -296,7 +289,6 @@ implements JvnLocalServer, JvnRemoteServer{
 	 **/
 	public Serializable jvnInvalidateWriterForReader(int joi)
 			throws java.rmi.RemoteException,jvn.JvnException { 
-		// to be completed 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
@@ -306,10 +298,8 @@ implements JvnLocalServer, JvnRemoteServer{
 				try {
 					obj.wait();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				// Maintenant que j'ai debuggué il faut comprendre pourquoi l'objet n'est pas dans le coordinateur !
 			}
 			obj.notify();
 		}
