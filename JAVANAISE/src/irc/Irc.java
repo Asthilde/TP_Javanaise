@@ -58,7 +58,6 @@ public class Irc {
 	public Irc(JvnObject jo) throws JvnException {
 		sentence = jo;
 		frame=new Frame();
-
 		frame.setLayout(new GridLayout(1,1));
 		text=new TextArea(10,60);
 		text.setEditable(false);
