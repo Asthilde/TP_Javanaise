@@ -53,10 +53,13 @@ public class Irc {
 	/**
 	 * IRC Constructor
    @param jo the JVN object representing the Chat
+	 * @throws JvnException 
 	 **/
-	public Irc(JvnObject jo) {
+	public Irc(JvnObject jo) throws JvnException {
+		System.out.println("La sentence du jvnObject vaut : " + ((Sentence) jo.jvnGetSharedObject()).read());
 		sentence = jo;
 		frame=new Frame();
+		
 		frame.setLayout(new GridLayout(1,1));
 		text=new TextArea(10,60);
 		text.setEditable(false);
@@ -92,18 +95,10 @@ class readListener implements ActionListener {
 	 **/
 	public void actionPerformed (ActionEvent e) {
 		try {
-			// lock the object in read mode
-			irc.sentence.jvnLockRead();
-
-			// invoke the method
-			String s = ((Sentence)(irc.sentence.jvnGetSharedObject())).read();
-
-			// unlock the object
-			irc.sentence.jvnUnLock();
-
-			// display the read value
-			irc.data.setText(s);
-			irc.text.append(s+"\n");
+			SentenceInterface s = JvnProxy.newInstance(irc.sentence);			// lock the object in read mode
+			String res = s.read();
+			irc.data.setText(res);
+			irc.text.append(res+"\n");
 		} catch (JvnException je) {
 			System.out.println("IRC problem : " + je.getMessage());
 		}
@@ -125,17 +120,8 @@ class writeListener implements ActionListener {
 	 **/
 	public void actionPerformed (ActionEvent e) {
 		try {	
-			// get the value to be written from the buffer
-			String s = irc.data.getText();
-
-			// lock the object in write mode
-			irc.sentence.jvnLockWrite();
-
-			// invoke the method
-			((Sentence)(irc.sentence.jvnGetSharedObject())).write(s);
-
-			// unlock the object
-			irc.sentence.jvnUnLock();
+			SentenceInterface s = JvnProxy.newInstance(irc.sentence);			// lock the object in read mode
+			s.write(irc.data.getText());
 		} catch (JvnException je) {
 			System.out.println("IRC problem  : " + je.getMessage());
 		}
