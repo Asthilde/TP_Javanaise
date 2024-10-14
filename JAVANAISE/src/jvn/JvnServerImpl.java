@@ -45,6 +45,13 @@ implements JvnLocalServer, JvnRemoteServer{
 			coordinator = (JvnRemoteCoord) registry.lookup("Coordinator");
 			objectStore = new HashMap<Integer, JvnObject>();
 			nameRegistry = new HashMap<String, Integer>();
+			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+				try {
+					jvnTerminate();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}));
 		} catch (Exception e) {
 			throw new JvnException("Erreur lors de la connexion au coordinateur : " + e.getMessage());
 		}
