@@ -7,11 +7,9 @@ import java.lang.reflect.Method;
 import irc.Sentence;
 
 public class JvnProxy implements InvocationHandler {
-	private Serializable myObject;
 	private static JvnObject obj;
 	
-	private JvnProxy(Serializable obj) { 
-		this.myObject = obj; 
+	private JvnProxy() { 
 	}
 
 	public static Serializable newInstance(JvnLocalServer js, Serializable object) throws JvnException {
@@ -23,7 +21,7 @@ public class JvnProxy implements InvocationHandler {
 			obj.jvnUnLock();
 			js.jvnRegisterObject("IRC", obj);
 		}
-		return (Serializable) java.lang.reflect.Proxy.newProxyInstance(object.getClass().getClassLoader(), object.getClass().getInterfaces(), new JvnProxy(object));
+		return (Serializable) java.lang.reflect.Proxy.newProxyInstance(object.getClass().getClassLoader(), object.getClass().getInterfaces(), new JvnProxy());
 	}
 
 	@Override
