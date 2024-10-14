@@ -30,18 +30,6 @@ public class Irc {
 		try {
 			// initialize JVN
 			JvnServerImpl js = JvnServerImpl.jvnGetServer();
-
-			// look up the IRC object in the JVN server
-			// if not found, create it, and register it in the JVN server
-//			JvnObject jo = js.jvnLookupObject("IRC");
-//
-//			if (jo == null) {
-//				System.out.println("Objet non trouvé");
-//				jo = js.jvnCreateObject(new Sentence());
-//				// after creation, I have a write lock on the object
-//				jo.jvnUnLock();
-//				js.jvnRegisterObject("IRC", jo);
-//			}
 			SentenceInterface sentence = (SentenceInterface) JvnProxy.newInstance(js, new Sentence());
 			// create the graphical part of the Chat application
 			new Irc(sentence);
@@ -93,14 +81,9 @@ class readListener implements ActionListener {
 	 * Management of user events
 	 **/
 	public void actionPerformed (ActionEvent e) {
-//		try {
-//			SentenceInterface s = JvnProxy.newInstance(irc.sentence);
 			String res = irc.sentence.read();
 			irc.data.setText(res);
 			irc.text.append(res+"\n");
-//		} catch (JvnException je) {
-//			System.out.println("IRC problem : " + je.getMessage());
-//		}
 	}
 }
 
@@ -118,11 +101,7 @@ class writeListener implements ActionListener {
 	 * Management of user events
 	 **/
 	public void actionPerformed (ActionEvent e) {
-//		try {	
 			irc.sentence.write(irc.data.getText());
-//		} catch (JvnException je) {
-//			System.out.println("IRC problem  : " + je.getMessage());
-//		}
 	}
 }
 
