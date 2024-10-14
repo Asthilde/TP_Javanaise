@@ -110,7 +110,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			throws jvn.JvnException { 
 		JvnObject jvnObj = null;
 		try {
-			jvnObj = new JvnObjectImpl((Sentence) o, coordinator.jvnGetObjectId(), js);
+			jvnObj = new JvnObjectImpl(o, coordinator.jvnGetObjectId(), js);
 			objectStore.put(jvnObj.jvnGetObjectId(), jvnObj);
 			jvnObj.jvnLockWrite();
 		} catch (RemoteException e) {
