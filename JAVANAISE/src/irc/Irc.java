@@ -19,7 +19,7 @@ public class Irc {
 	public TextArea		text;
 	public TextField	data;
 	Frame 			frame;
-	JvnObject       sentence;
+	SentenceInterface       sentence;
 
 
 	/**
@@ -33,17 +33,18 @@ public class Irc {
 
 			// look up the IRC object in the JVN server
 			// if not found, create it, and register it in the JVN server
-			JvnObject jo = js.jvnLookupObject("IRC");
-
-			if (jo == null) {
-				System.out.println("Objet non trouvé");
-				jo = js.jvnCreateObject(new Sentence());
-				// after creation, I have a write lock on the object
-				jo.jvnUnLock();
-				js.jvnRegisterObject("IRC", jo);
-			}
+//			JvnObject jo = js.jvnLookupObject("IRC");
+//
+//			if (jo == null) {
+//				System.out.println("Objet non trouvé");
+//				jo = js.jvnCreateObject(new Sentence());
+//				// after creation, I have a write lock on the object
+//				jo.jvnUnLock();
+//				js.jvnRegisterObject("IRC", jo);
+//			}
+			SentenceInterface sentence = (SentenceInterface) JvnProxy.newInstance(js, new Sentence());
 			// create the graphical part of the Chat application
-			new Irc(jo);
+			new Irc(sentence);
 
 		} catch (Exception e) {
 			System.out.println("IRC problem : " + e.getMessage());
@@ -55,7 +56,7 @@ public class Irc {
    @param jo the JVN object representing the Chat
 	 * @throws JvnException 
 	 **/
-	public Irc(JvnObject jo) throws JvnException {
+	public Irc(SentenceInterface jo) throws JvnException {
 		sentence = jo;
 		frame=new Frame();
 		frame.setLayout(new GridLayout(1,1));
@@ -92,14 +93,14 @@ class readListener implements ActionListener {
 	 * Management of user events
 	 **/
 	public void actionPerformed (ActionEvent e) {
-		try {
-			SentenceInterface s = JvnProxy.newInstance(irc.sentence);
-			String res = s.read();
+//		try {
+//			SentenceInterface s = JvnProxy.newInstance(irc.sentence);
+			String res = irc.sentence.read();
 			irc.data.setText(res);
 			irc.text.append(res+"\n");
-		} catch (JvnException je) {
-			System.out.println("IRC problem : " + je.getMessage());
-		}
+//		} catch (JvnException je) {
+//			System.out.println("IRC problem : " + je.getMessage());
+//		}
 	}
 }
 
@@ -117,12 +118,11 @@ class writeListener implements ActionListener {
 	 * Management of user events
 	 **/
 	public void actionPerformed (ActionEvent e) {
-		try {	
-			SentenceInterface s = JvnProxy.newInstance(irc.sentence);
-			s.write(irc.data.getText());
-		} catch (JvnException je) {
-			System.out.println("IRC problem  : " + je.getMessage());
-		}
+//		try {	
+			irc.sentence.write(irc.data.getText());
+//		} catch (JvnException je) {
+//			System.out.println("IRC problem  : " + je.getMessage());
+//		}
 	}
 }
 

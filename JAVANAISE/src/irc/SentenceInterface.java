@@ -1,5 +1,6 @@
 package irc;
 
+import jvn.Annotation;
 
 public interface SentenceInterface extends java.io.Serializable {
 	
