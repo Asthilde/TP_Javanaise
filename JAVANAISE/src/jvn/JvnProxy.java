@@ -1,17 +1,29 @@
 package jvn;
 
+import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
-import irc.Annotation;
 import irc.Sentence;
-import irc.SentenceInterface;
 
 public class JvnProxy implements InvocationHandler {
-	private JvnObject obj;
-	private JvnProxy(JvnObject obj) { this.obj = obj; }
-	public static SentenceInterface  newInstance(JvnObject object) throws JvnException {
-		return (SentenceInterface) java.lang.reflect.Proxy.newProxyInstance(((SentenceInterface) object.jvnGetSharedObject()).getClass().getClassLoader(), ((SentenceInterface) object.jvnGetSharedObject()).getClass().getInterfaces(), new JvnProxy(object));
+	private Serializable myObject;
+	private static JvnObject obj;
+	
+	private JvnProxy(Serializable obj) { 
+		this.myObject = obj; 
+	}
+
+	public static Serializable newInstance(JvnLocalServer js, Serializable object) throws JvnException {
+		obj = js.jvnLookupObject("IRC");
+
+		if (obj == null) {
+			System.out.println("Objet non trouvé");
+			obj = js.jvnCreateObject(object);
+			obj.jvnUnLock();
+			js.jvnRegisterObject("IRC", obj);
+		}
+		return (Serializable) java.lang.reflect.Proxy.newProxyInstance(object.getClass().getClassLoader(), object.getClass().getInterfaces(), new JvnProxy(object));
 	}
 
 	@Override
@@ -22,14 +34,14 @@ public class JvnProxy implements InvocationHandler {
 
 			if(annotation.methodName().equals("write")) {
 				obj.jvnLockWrite();
-				System.out.println("Appel à la méthode write pour écrire : " + ((String) args[0]));
-				result = ((Sentence)(obj.jvnGetSharedObject())).write((String) args[0]);
+				System.out.println("Appel à la méthode write pour écrire : " + ((String) args[0]));		
+				result = method.invoke((Sentence) obj.jvnGetSharedObject(), args);	
 				obj.jvnUnLock();
 			}
 			else if(annotation.methodName().equals("read")) {
 				obj.jvnLockRead();
 				System.out.println("Appel à la méthode read pour lire : " + ((Sentence) obj.jvnGetSharedObject()).read());
-				result = ((Sentence) obj.jvnGetSharedObject()).read();
+				result = method.invoke((Sentence) obj.jvnGetSharedObject(), args);
 				obj.jvnUnLock();
 			}
 		}

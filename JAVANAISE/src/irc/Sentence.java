@@ -7,8 +7,8 @@
  */
 
 package irc;
+import jvn.Annotation;
 
-import irc.Annotation;
 
 public class Sentence implements SentenceInterface {
 	private static final long serialVersionUID = 1L;
