@@ -13,6 +13,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -157,13 +158,12 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 
 		if (localObject == null) {
-			// Si l'objet n'est pas présent dans le magasin local
 			try {
 				localObject = coordinator.jvnLookupObject(jon, js);
 				if(localObject == null) {
 					return null;
 				}
-				localObject = new JvnObjectImpl(((Sentence)localObject.jvnGetSharedObject()), localObject.jvnGetObjectId(), js);
+				localObject = new JvnObjectImpl(localObject.jvnGetSharedObject(), localObject.jvnGetObjectId(), js);
 				localObject.jvnChangeState(LockState.NL);
 				objectStore.put(localObject.jvnGetObjectId(), localObject);
 				nameRegistry.put(jon, localObject.jvnGetObjectId());
@@ -171,14 +171,12 @@ implements JvnLocalServer, JvnRemoteServer{
 				throw new JvnException("Erreur lors de la récupération de l'objet du coordinateur : " + e.getMessage());
 			}
 		} else {
-			// Vérifier si l'état nécessite une version plus récente
 			if (localObject.jvnGetState() == LockState.NL) {
 				try {
 					JvnObject updatedObject = coordinator.jvnLookupObject(jon, js);
 					if (updatedObject != null) {
-						localObject = new JvnObjectImpl(((Sentence)updatedObject.jvnGetSharedObject()), updatedObject.jvnGetObjectId(), js);
+						localObject = new JvnObjectImpl(updatedObject.jvnGetSharedObject(), updatedObject.jvnGetObjectId(), js);
 						localObject.jvnChangeState(LockState.NL);
-						// Mise à jour de l'objet dans le magasin local
 						objectStore.put(id, localObject);
 					}
 				} catch (Exception e) {
@@ -204,6 +202,7 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 		synchronized (obj) {
 			try {
+				System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " Je demande lockRead au coordinateur");
 				JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
 				return updatedObject.jvnGetSharedObject();
 			} catch (Exception e) {
@@ -226,6 +225,7 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 		synchronized (obj) {
 			try {
+				System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " Je demande lockWrite au coordinateur");
 				JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
 				return updatedObject.jvnGetSharedObject();
 			} catch (Exception e) {
@@ -248,9 +248,10 @@ implements JvnLocalServer, JvnRemoteServer{
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
+		System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " On veut m'invalider en tant que lecteur");
 		synchronized (obj) {
 			obj.jvnInvalidateReader();
-			obj.notify();
+			obj.notifyAll();
 		}
 	};
 
@@ -268,15 +269,10 @@ implements JvnLocalServer, JvnRemoteServer{
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
+		System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " On veut m'invalider en tant qu'écrivain");
 		synchronized (obj) {
-			while(obj.jvnInvalidateWriter() != LockState.NL) {
-				try {
-					obj.wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			obj.notify();
+			obj.jvnInvalidateWriter();
+			obj.notifyAll();
 		}
 		return obj;
 	};
@@ -293,15 +289,10 @@ implements JvnLocalServer, JvnRemoteServer{
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
+		System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " On veut m'invalider en tant qu'écrivain pour un lecteur");
 		synchronized (obj) {
-			while(obj.jvnInvalidateWriterForReader() != LockState.R && obj.jvnInvalidateWriterForReader() != LockState.RC && obj.jvnInvalidateWriterForReader() != LockState.NL) {
-				try {
-					obj.wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			obj.notify();
+			obj.jvnInvalidateWriterForReader();
+			obj.notifyAll();
 		}
 		return obj;
 	};

@@ -10,6 +10,7 @@
 package jvn;
 
 import java.rmi.server.UnicastRemoteObject;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +34,7 @@ implements JvnRemoteCoord{
 	private static HashMap<Integer, JvnObject> objectsIdMap;
 	private static HashMap<String, Integer> objectsNameMap;
 	private static HashMap<Integer, HashMap<JvnRemoteServer, LockState>> objectsLockMap;
+	private static List<JvnRemoteServer> writeAskServers = new ArrayList<JvnRemoteServer>();
 
 
 	/**
@@ -134,16 +136,15 @@ implements JvnRemoteCoord{
 		JvnObject objFound = JvnCoordImpl.objectsIdMap.get(joi); 
 		if(objFound != null)
 		{
+			System.out.println("Je reçois un lockRead de " + js.hashCode());
 			HashMap<JvnRemoteServer, LockState> currentLocks = objectsLockMap.get(joi);
 			if(currentLocks.get(js) == LockState.NL || currentLocks.get(js) == null) {
 				if(currentLocks.containsValue(LockState.W)) {
+					System.out.println("J'invalidate l'écrivain");
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
-							JvnObject newObject;
-							synchronized(objFound) {
-								newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
-								objectsIdMap.put(joi, newObject);
-							}
+							JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
+							objectsIdMap.put(joi, newObject);
 							currentLocks.put(server.getKey(), LockState.R);
 							currentLocks.put(js, LockState.R);
 							objectsLockMap.put(joi,currentLocks);
@@ -173,43 +174,66 @@ implements JvnRemoteCoord{
 		JvnObject objFound = JvnCoordImpl.objectsIdMap.get(joi); 
 		if(objFound != null)
 		{
+
+			System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " Je reçois un lockWrite de " + js.hashCode());
+			try {
+				writeAskServers.add(js);
+				while(writeAskServers.size() > 1) {
+					js.wait();
+					//objFound.jvnGetSharedObject().notify();
+				}
+				writeAskServers.remove(js);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 			HashMap<JvnRemoteServer, LockState> currentLocks = objectsLockMap.get(joi);
 			if(currentLocks.get(js) == LockState.NL || currentLocks.get(js) == null || currentLocks.get(js) == LockState.R) {
 				if(currentLocks.containsValue(LockState.W)) {
+					System.out.println("J'invalide l'écrivain");
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
-							JvnObject newObject;
-							synchronized(objFound) {
-								newObject = (JvnObject) server.getKey().jvnInvalidateWriter(joi);
-								objectsIdMap.put(joi, newObject);
-							}
-							currentLocks.remove(server.getKey());
+							System.out.println("J'ai trouvé l'écrivain ! C'est " + server.getKey().hashCode());
+							JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriter(joi);
+							objectsIdMap.put(joi, newObject);
+							currentLocks.put(server.getKey(), LockState.NL);
 							currentLocks.put(js, LockState.W);
 							objectsLockMap.put(joi,currentLocks);
+							System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " J'ai fini d'invalider l'écrivain pour " + js.hashCode());
+							if(writeAskServers.size() > 0) {
+								writeAskServers.getFirst().notify();
+							}
 							return newObject;
 						}
 					}
 				}
 				else if(currentLocks.containsValue(LockState.R)) {
 					List<JvnRemoteServer> serversTab = new ArrayList<JvnRemoteServer>();
+					System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " J'invalide le ou les lecteurs pour " + js.hashCode());
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.R && server.getKey().hashCode() != js.hashCode()) {
-							synchronized(objFound) {
-								server.getKey().jvnInvalidateReader(joi);
-								serversTab.add(server.getKey());
-							}
+							server.getKey().jvnInvalidateReader(joi);
+							serversTab.add(server.getKey());
 						}
 					}
-					for(JvnRemoteServer server : serversTab) {
-						currentLocks.put(server, LockState.NL);
+
+					for(JvnRemoteServer serv : serversTab) {
+						currentLocks.put(serv, LockState.NL);
 					}
 					currentLocks.put(js, LockState.W);
 					objectsLockMap.put(joi,currentLocks);
+
+					System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " J'ai fini d'invalider les lecteurs pour " + js.hashCode());
+					if(writeAskServers.size() > 0) {
+						writeAskServers.getFirst().notify();
+					}
 					return objFound;
 				}
 				else {
 					currentLocks.put(js, LockState.W);
 					objectsLockMap.put(joi,currentLocks);
+					if(writeAskServers.size() > 0) {
+						writeAskServers.getFirst().notify();
+					}
 					return objFound;
 				}
 			}

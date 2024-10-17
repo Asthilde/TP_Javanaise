@@ -19,38 +19,43 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	}
 
 	@Override
-	public void jvnLockRead() throws JvnException {
+	public synchronized void jvnLockRead() throws JvnException {
 		if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.W) {
 			lockState = LockState.R;
-		} else if (lockState == LockState.RC) {
+		} else if (lockState == LockState.WC) {
 			lockState = LockState.RWC;
 		} else if (lockState == LockState.NL) {
-			object = js.jvnLockRead(id);
 			lockState = LockState.R;
+			object = js.jvnLockRead(id);
+			System.out.println("Je reçois l'objet " + object.toString());
 		}
 	}
 
 	@Override
-	public void jvnLockWrite() throws JvnException {
+	public synchronized void jvnLockWrite() throws JvnException {
 		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			lockState = LockState.W;
 		} else if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.NL) {
-			object = js.jvnLockWrite(id);
 			lockState = LockState.W;
+			object = js.jvnLockWrite(id);
+			System.out.println("Je reçois l'objet " + object.toString());
+
 		}
 	}
 
 	@Override
 	public synchronized void jvnUnLock() throws JvnException {
+		System.out.print("Je suis unlock, ");
 		if (lockState == LockState.NL) {
-			throw new JvnException("La machine courante ne détient pas de verrou sur l'objet.");
+			this.notifyAll();
 		} else if (lockState == LockState.W) {
 			lockState = LockState.WC;
-			this.notify();
+			this.notifyAll();
 		} else if (lockState == LockState.R) {
 			lockState = LockState.RC;
-			this.notify();
+			this.notifyAll();
 		}
+		System.out.println("Mon état est : " + lockState);
 	}
 
 	@Override
@@ -71,6 +76,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			throw new JvnException("L'objet n'est pas verrouillé en lecture sur cette machine !");
 		}
+		System.out.println("Je reçois invalidateReader en tant qu'objet, mon état est : " + this.lockState);
 		while (lockState == LockState.R) {
 			try {
 				this.wait();
@@ -86,6 +92,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		if (lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
+		System.out.println("Je reçois invalidateWriter en tant qu'objet, mon état est : " + this.lockState);
 		while (lockState == LockState.W) {
 			try {
 				this.wait();
@@ -102,6 +109,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 		if (lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
+		System.out.println("Je reçois invalidateWriterForReader en tant qu'objet, mon état est : " + this.lockState);
 		while (lockState == LockState.W) {
 			try {
 				this.wait();
