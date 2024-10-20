@@ -1,8 +1,5 @@
 package Compteur;
 
-import irc.Sentence;
-import jvn.JvnObject;
-import jvn.JvnServerImpl;
 
 public class Main {
 	public static void main(String argv[]) {

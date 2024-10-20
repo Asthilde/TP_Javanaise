@@ -27,8 +27,8 @@ extends UnicastRemoteObject
 implements JvnLocalServer, JvnRemoteServer{
 
 	private JvnRemoteCoord coordinator; // Ref coord
-	private HashMap<Integer, JvnObject> objectStore; // Pour stocker les objets JVN
-	private HashMap<String, Integer> nameRegistry; // Pour stocker les noms
+	private HashMap<Integer, JvnObject> objectStore; // To store JVN objects
+	private HashMap<String, Integer> nameRegistry; // To store names
 
 	private static final long serialVersionUID = 1L;
 	// A JVN server is managed as a singleton 
@@ -41,7 +41,7 @@ implements JvnLocalServer, JvnRemoteServer{
 	private JvnServerImpl() throws Exception {
 		super();
 		try {
-			Registry registry = LocateRegistry.getRegistry("localhost", 1099); // Port a corriger si besoin
+			Registry registry = LocateRegistry.getRegistry("localhost", 1099); // Port to be corrected if necessary
 			coordinator = (JvnRemoteCoord) registry.lookup("Coordinator");
 			objectStore = new HashMap<Integer, JvnObject>();
 			nameRegistry = new HashMap<String, Integer>();
@@ -53,7 +53,7 @@ implements JvnLocalServer, JvnRemoteServer{
 				}
 			}));
 		} catch (Exception e) {
-			throw new JvnException("Erreur lors de la connexion au coordinateur : " + e.getMessage());
+			throw new JvnException("Error connecting to coordinator : " + e.getMessage());
 		}
 	}
 	
@@ -102,7 +102,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			objectStore.clear();
 			coordinator.jvnTerminate(js);
 		} catch (RemoteException e) {
-			throw new JvnException("Erreur lors de la terminaison : " + e.getMessage());
+			throw new JvnException("Termination error : " + e.getMessage());
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -135,7 +135,7 @@ implements JvnLocalServer, JvnRemoteServer{
 	public void jvnRegisterObject(String jon, JvnObject jo) throws JvnException {
 		int id = jo.jvnGetObjectId();
 		if (nameRegistry.containsKey(jon)) {
-			throw new JvnException("Nom enregistré");
+			throw new JvnException("Registered name");
 		}
 		nameRegistry.put(jon, id);
 		try {
@@ -165,7 +165,6 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 
 		if (localObject == null) {
-			// Si l'objet n'est pas présent dans le magasin local
 			try {
 				localObject = coordinator.jvnLookupObject(jon, js);
 				if(localObject == null) {
@@ -176,21 +175,19 @@ implements JvnLocalServer, JvnRemoteServer{
 				objectStore.put(localObject.jvnGetObjectId(), localObject);
 				nameRegistry.put(jon, localObject.jvnGetObjectId());
 			} catch (Exception e) {
-				throw new JvnException("Erreur lors de la récupération de l'objet du coordinateur : " + e.getMessage());
+				throw new JvnException("Error retrieving coordinator object :" + e.getMessage());
 			}
 		} else {
-			// Vérifier si l'état nécessite une version plus récente
 			if (localObject.jvnGetState() == LockState.NL) {
 				try {
 					JvnObject updatedObject = coordinator.jvnLookupObject(jon, js);
 					if (updatedObject != null) {
 						localObject = new JvnObjectImpl(((Sentence)updatedObject.jvnGetSharedObject()), updatedObject.jvnGetObjectId(), js);
 						localObject.jvnChangeState(LockState.NL);
-						// Mise à jour de l'objet dans le magasin local
 						objectStore.put(id, localObject);
 					}
 				} catch (Exception e) {
-					throw new JvnException("Erreur lors de la récupération de l'objet mis à jour du coordinateur : " + e.getMessage());
+					throw new JvnException("Error retrieving updated object from coordinator : " + e.getMessage());
 				}
 			}
 		}
@@ -208,14 +205,14 @@ implements JvnLocalServer, JvnRemoteServer{
 			throws JvnException {
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
-			throw new JvnException("Objet non trouvé dans la machine");
+			throw new JvnException("Object not found in machine");
 		}
 		synchronized (obj) {
 			try {
 				JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
 				return updatedObject.jvnGetSharedObject();
 			} catch (Exception e) {
-				throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
+				throw new JvnException("Error when requesting a read lock from the coordinator : " + e.getMessage());
 			}
 		}
 	}
@@ -230,14 +227,14 @@ implements JvnLocalServer, JvnRemoteServer{
 			throws JvnException {
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
-			throw new JvnException("Objet non trouvé dans la machine");
+			throw new JvnException("Object not found in machine");
 		}
 		synchronized (obj) {
 			try {
 				JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
 				return updatedObject.jvnGetSharedObject();
 			} catch (Exception e) {
-				throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
+				throw new JvnException("Error when requesting a write lock from the coordinator : " + e.getMessage());
 			}
 		}
 	}	
@@ -254,7 +251,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			throws java.rmi.RemoteException,jvn.JvnException {
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
-			throw new JvnException("Objet non trouvé pour ID : " + joi);
+			throw new JvnException("Object not found for ID : " + joi);
 		}
 		synchronized (obj) {
 			obj.jvnInvalidateReader();
@@ -274,7 +271,7 @@ implements JvnLocalServer, JvnRemoteServer{
 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
-			throw new JvnException("Objet non trouvé pour ID : " + joi);
+			throw new JvnException("Object not found for ID : " + joi);
 		}
 		synchronized (obj) {
 			while(obj.jvnInvalidateWriter() != LockState.NL) {
@@ -299,7 +296,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			throws java.rmi.RemoteException,jvn.JvnException { 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
-			throw new JvnException("Object not found for ID: " + joi);
+			throw new JvnException("Object not found for ID : " + joi);
 		}
 		synchronized (obj) {
 			while(obj.jvnInvalidateWriterForReader() != LockState.R && obj.jvnInvalidateWriterForReader() != LockState.RC && obj.jvnInvalidateWriterForReader() != LockState.NL) {

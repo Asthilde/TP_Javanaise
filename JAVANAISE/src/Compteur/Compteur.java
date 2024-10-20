@@ -1,7 +1,6 @@
 package Compteur;
 
-import jvn.JvnObject;
-import jvn.JvnServerImpl;
+
 
 public class Compteur implements java.io.Serializable {
 	int comp;
