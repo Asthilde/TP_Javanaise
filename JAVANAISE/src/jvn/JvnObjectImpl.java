@@ -5,6 +5,8 @@ import java.io.Serializable;
 public class JvnObjectImpl implements JvnObject, Serializable {
 
 	private static final long serialVersionUID = 3L;
+	
+	private static final long lockTimeOut = 5000;
 
 	private LockState lockState;
 	private int id;
@@ -19,33 +21,29 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	}
 
 	@Override
-	public synchronized void jvnLockRead() throws JvnException {
+	public synchronized void jvnLockRead() throws JvnException, JvnLockException {
 		if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.W) {
 			lockState = LockState.R;
 		} else if (lockState == LockState.WC) {
 			lockState = LockState.RWC;
 		} else if (lockState == LockState.NL) {
-			lockState = LockState.R;
 			object = js.jvnLockRead(id);
-			System.out.println("Je reçois l'objet " + object.toString());
+			lockState = LockState.R;
 		}
 	}
 
 	@Override
-	public synchronized void jvnLockWrite() throws JvnException {
+	public synchronized void jvnLockWrite() throws JvnException, JvnLockException {
 		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			lockState = LockState.W;
 		} else if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.NL) {
-			lockState = LockState.W;
 			object = js.jvnLockWrite(id);
-			System.out.println("Je reçois l'objet " + object.toString());
-
+			lockState = LockState.W;
 		}
 	}
 
 	@Override
 	public synchronized void jvnUnLock() throws JvnException {
-		System.out.print("Je suis unlock, ");
 		if (lockState == LockState.NL) {
 			this.notifyAll();
 		} else if (lockState == LockState.W) {
@@ -55,7 +53,6 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 			lockState = LockState.RC;
 			this.notifyAll();
 		}
-		System.out.println("Mon état est : " + lockState);
 	}
 
 	@Override
@@ -72,32 +69,37 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	}
 
 	@Override
-	public synchronized void jvnInvalidateReader() throws JvnException {
-		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
+	public synchronized void jvnInvalidateReader() throws JvnException, JvnLockException {
+		if (lockState == LockState.W || lockState == LockState.WC) {
 			throw new JvnException("L'objet n'est pas verrouillé en lecture sur cette machine !");
 		}
-		System.out.println("Je reçois invalidateReader en tant qu'objet, mon état est : " + this.lockState);
 		while (lockState == LockState.R) {
 			try {
-				this.wait();
+				this.wait(lockTimeOut);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
+				throw new JvnLockException("Verrou pas relaché !");
+			}
+			if(lockState == LockState.R) {
+				throw new JvnLockException("Verrou pas relaché !");
 			}
 		}
 		lockState = LockState.NL;
 	}
 
 	@Override
-	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
+	public synchronized Serializable jvnInvalidateWriter() throws JvnException, JvnLockException {
 		if (lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
-		System.out.println("Je reçois invalidateWriter en tant qu'objet, mon état est : " + this.lockState);
 		while (lockState == LockState.W) {
 			try {
-				this.wait();
+				this.wait(lockTimeOut);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
+			}
+			if(lockState == LockState.W) {
+				throw new JvnLockException("Verrou pas relaché !");
 			}
 		}
 		lockState = LockState.NL;
@@ -105,16 +107,18 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	}
 
 	@Override
-	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
+	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException, JvnLockException {
 		if (lockState == LockState.R) {
 			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
 		}
-		System.out.println("Je reçois invalidateWriterForReader en tant qu'objet, mon état est : " + this.lockState);
 		while (lockState == LockState.W) {
 			try {
-				this.wait();
+				this.wait(lockTimeOut);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
+			}
+			if(lockState == LockState.W) {
+				throw new JvnLockException("Verrou pas relaché !");
 			}
 		}
 		if (lockState == LockState.RWC) {

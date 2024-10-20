@@ -45,7 +45,7 @@ public interface JvnRemoteCoord extends Remote {
 	* @throws java.rmi.RemoteException,JvnException
 	**/
 	public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
-	throws java.rmi.RemoteException,jvn.JvnException; 
+	throws java.rmi.RemoteException,jvn.JvnException, JvnLockException; 
 	
 	/**
 	* Get a Read lock on a JVN object managed by a given JVN server 
@@ -55,7 +55,7 @@ public interface JvnRemoteCoord extends Remote {
 	* @throws java.rmi.RemoteException, JvnException
 	**/
    public Serializable jvnLockRead(int joi, JvnRemoteServer js)
-	 throws java.rmi.RemoteException, JvnException;
+	 throws java.rmi.RemoteException, JvnException, JvnLockException;
 
 	/**
 	* Get a Write lock on a JVN object managed by a given JVN server 
@@ -65,7 +65,7 @@ public interface JvnRemoteCoord extends Remote {
 	* @throws java.rmi.RemoteException, JvnException
 	**/
    public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
-	 throws java.rmi.RemoteException, JvnException;
+	 throws java.rmi.RemoteException, JvnException, JvnLockException;
 
 	/**
 	* A JVN server terminates
@@ -73,7 +73,7 @@ public interface JvnRemoteCoord extends Remote {
 	* @throws java.rmi.RemoteException, JvnException
 	**/
   public void jvnTerminate(JvnRemoteServer js)
-	 throws java.rmi.RemoteException, JvnException;
+	 throws java.rmi.RemoteException, JvnException, JvnLockException;
 
  }
 

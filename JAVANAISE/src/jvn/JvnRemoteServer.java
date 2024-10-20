@@ -26,7 +26,7 @@ public interface JvnRemoteServer extends Remote {
 	* @throws java.rmi.RemoteException,JvnException
 	**/
   public void jvnInvalidateReader(int joi)
-	throws java.rmi.RemoteException,jvn.JvnException;
+	throws java.rmi.RemoteException,jvn.JvnException, JvnLockException;
 	    
 	/**
 	* Invalidate the Write lock of a JVN object 
@@ -35,7 +35,7 @@ public interface JvnRemoteServer extends Remote {
 	* @throws java.rmi.RemoteException,JvnException
 	**/
         public Serializable jvnInvalidateWriter(int joi)
-	throws java.rmi.RemoteException,jvn.JvnException;
+	throws java.rmi.RemoteException,jvn.JvnException, JvnLockException;
 	
 	/**
 	* Reduce the Write lock of a JVN object 
@@ -44,7 +44,7 @@ public interface JvnRemoteServer extends Remote {
 	* @throws java.rmi.RemoteException,JvnException
 	**/
    public Serializable jvnInvalidateWriterForReader(int joi)
-	 throws java.rmi.RemoteException,jvn.JvnException;
+	 throws java.rmi.RemoteException,jvn.JvnException, JvnLockException;
 
 }
 

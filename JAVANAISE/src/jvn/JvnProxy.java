@@ -8,7 +8,7 @@ import irc.Sentence;
 
 public class JvnProxy implements InvocationHandler {
 	private static JvnObject obj;
-	
+
 	private JvnProxy() { 
 	}
 
@@ -31,14 +31,40 @@ public class JvnProxy implements InvocationHandler {
 			Annotation annotation = method.getAnnotation(Annotation.class);
 
 			if(annotation.methodName().equals("write")) {
-				obj.jvnLockWrite();
+				try {
+					obj.jvnLockWrite();
+				} catch(jvn.JvnLockException e) {
+					System.out.println("Le verrou n'est pas relaché par ceux qui le détiennent j'abandonne !");	
+					if(method.getReturnType() == Integer.class || method.getReturnType() == int.class || method.getReturnType() == long.class || method.getReturnType() == float.class || method.getReturnType() == long.class) {
+						return 0;
+					} else if(method.getReturnType() == boolean.class) {
+						return false;
+					}
+					else if(method.getReturnType() == char.class) {
+						return '\0' ;
+					}
+					return null;
+				}
 				System.out.println("Appel à la méthode write");		
 				result = method.invoke(obj.jvnGetSharedObject(), args);	
 				System.out.println("Fin d'appel à la méthode write");
 				obj.jvnUnLock();
 			}
 			else if(annotation.methodName().equals("read")) {
-				obj.jvnLockRead();
+				try {
+					obj.jvnLockRead();
+				} catch(jvn.JvnLockException e) {
+					System.out.println("Le verrou n'est pas relaché par ceux qui le détiennent j'abandonne !");	
+					if(method.getReturnType() == Integer.class || method.getReturnType() == int.class || method.getReturnType() == long.class || method.getReturnType() == float.class || method.getReturnType() == long.class) {
+						return 0;
+					} else if(method.getReturnType() == boolean.class) {
+						return false;
+					}
+					else if(method.getReturnType() == char.class) {
+						return '\0' ;
+					}
+					return null;
+				}
 				System.out.println("Appel à la méthode read");
 				result = method.invoke(obj.jvnGetSharedObject(), args);
 				System.out.println("Fin d'appel à la méthode read");

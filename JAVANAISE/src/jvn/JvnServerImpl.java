@@ -16,6 +16,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import irc.Sentence;
 
@@ -78,7 +79,7 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws JvnException
 	 **/
 	public void jvnTerminate()
-			throws jvn.JvnException {
+			throws jvn.JvnException, JvnLockException {
 		try {
 			for (Map.Entry<Integer, JvnObject> entry : objectStore.entrySet()) {
 				JvnObject obj = entry.getValue();
@@ -115,6 +116,8 @@ implements JvnLocalServer, JvnRemoteServer{
 			jvnObj.jvnLockWrite();
 		} catch (RemoteException e) {
 			e.printStackTrace();
+		} catch (JvnLockException el) {
+			el.printStackTrace();
 		}
 		return jvnObj; 
 	}
@@ -195,19 +198,19 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws  JvnException
 	 **/
 	public Serializable jvnLockRead(int joi)
-			throws JvnException {
+			throws JvnException, JvnLockException {
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé dans la machine");
 		}
-		synchronized (obj) {
-			try {
-				System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " Je demande lockRead au coordinateur");
-				JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
-				return updatedObject.jvnGetSharedObject();
-			} catch (Exception e) {
-				throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
-			}
+		try {
+			JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
+			return updatedObject.jvnGetSharedObject();
+		} catch (JvnLockException je) {
+			throw new JvnLockException("Verrou pas relaché !");
+		}
+		catch (Exception e) {
+			throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
 		}
 	}
 
@@ -218,19 +221,19 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws  JvnException
 	 **/
 	public Serializable jvnLockWrite(int joi)
-			throws JvnException {
+			throws JvnException, JvnLockException {
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé dans la machine");
 		}
-		synchronized (obj) {
-			try {
-				System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " Je demande lockWrite au coordinateur");
-				JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
-				return updatedObject.jvnGetSharedObject();
-			} catch (Exception e) {
-				throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
-			}
+		try {
+			JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
+			return updatedObject.jvnGetSharedObject();
+		} catch (JvnLockException je) {
+			throw new JvnLockException("Verrou pas relaché !");
+		}
+		catch (Exception e) {
+			throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
 		}
 	}	
 
@@ -243,12 +246,55 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws java.rmi.RemoteException,JvnException
 	 **/
 	public void jvnInvalidateReader(int joi)
-			throws java.rmi.RemoteException,jvn.JvnException {
+			throws java.rmi.RemoteException,jvn.JvnException, JvnLockException {
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
-		System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " On veut m'invalider en tant que lecteur");
+		AtomicReference<Exception> exceptionHolder = new AtomicReference<>(null);
+		Runnable invalidateReader = ()-> { try {
+			obj.jvnInvalidateReader();
+			if(Thread.currentThread().isInterrupted()) {
+				throw new JvnLockException("Le thread d'invalidation est interrompu");
+			}
+		} catch (JvnException e) {
+			e.printStackTrace();
+		} catch (JvnLockException e) {
+			exceptionHolder.set(e);
+		} };
+		Thread workerThread = new Thread(invalidateReader); 
+
+		Thread monitorThread = new Thread(() -> {
+			try {
+				// Attendre le délai défini (timeout)
+				Thread.sleep((long) (Math.random() * 5000) + 3000);
+
+				// Si la tâche n'est pas terminée, tenter de l'interrompre
+				if (workerThread.isAlive()) {
+					System.out.println("Temps écoulé, tentative d'interruption du thread de travail.");
+					workerThread.interrupt(); // Demander une interruption
+					exceptionHolder.set(new JvnLockException());
+				}
+			} catch (InterruptedException e) {
+				exceptionHolder.set(new JvnLockException());
+			}
+		});
+
+		monitorThread.start();
+		workerThread.start();
+
+		try {
+			monitorThread.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		if(workerThread.isInterrupted()) {
+			throw new JvnLockException("Le serveur interrompt l'invalidation !");
+		}
+		if(exceptionHolder.get() != null) {
+			obj.notifyAll();
+			throw new JvnLockException("Le serveur interrompt l'invalidation !");
+		}
 		synchronized (obj) {
 			obj.jvnInvalidateReader();
 			obj.notifyAll();
@@ -263,13 +309,12 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws java.rmi.RemoteException,JvnException
 	 **/
 	public Serializable jvnInvalidateWriter(int joi)
-			throws java.rmi.RemoteException,jvn.JvnException { 
+			throws java.rmi.RemoteException,jvn.JvnException, JvnLockException { 
 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
-		System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " On veut m'invalider en tant qu'écrivain");
 		synchronized (obj) {
 			obj.jvnInvalidateWriter();
 			obj.notifyAll();
@@ -284,12 +329,11 @@ implements JvnLocalServer, JvnRemoteServer{
 	 * @throws java.rmi.RemoteException,JvnException
 	 **/
 	public Serializable jvnInvalidateWriterForReader(int joi)
-			throws java.rmi.RemoteException,jvn.JvnException { 
+			throws java.rmi.RemoteException,jvn.JvnException, JvnLockException { 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
 			throw new JvnException("Objet non trouvé pour ID : " + joi);
 		}
-		System.out.println(new Timestamp(System.currentTimeMillis()).toString() + " On veut m'invalider en tant qu'écrivain pour un lecteur");
 		synchronized (obj) {
 			obj.jvnInvalidateWriterForReader();
 			obj.notifyAll();

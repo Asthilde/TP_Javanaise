@@ -54,7 +54,7 @@ public interface JvnLocalServer {
 	* @throws  JvnException
 	**/
    public Serializable jvnLockRead(int joi)
-	 throws JvnException;
+	 throws JvnException, JvnLockException;
 
 	/**
 	* Get a Write lock on a JVN object 
@@ -63,7 +63,7 @@ public interface JvnLocalServer {
 	* @throws  JvnException
 	**/
    public Serializable jvnLockWrite(int joi)
-	 throws JvnException;
+	 throws JvnException, JvnLockException;
 
          
    /**
@@ -71,7 +71,7 @@ public interface JvnLocalServer {
     * @throws JvnException
     **/
    public  void jvnTerminate()
-   throws jvn.JvnException; 
+   throws jvn.JvnException, JvnLockException; 
 }
 
  
