@@ -19,7 +19,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	}
 
 	@Override
-	public void jvnLockRead() throws JvnException {
+	public synchronized void jvnLockRead() throws JvnException {
 		if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.W) {
 			lockState = LockState.R;
 		} else if (lockState == LockState.RC) {
@@ -31,7 +31,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	}
 
 	@Override
-	public void jvnLockWrite() throws JvnException {
+	public synchronized void jvnLockWrite() throws JvnException {
 		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
 			lockState = LockState.W;
 		} else if (lockState == LockState.R || lockState == LockState.RC || lockState == LockState.NL) {

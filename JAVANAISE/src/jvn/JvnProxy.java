@@ -31,12 +31,14 @@ public class JvnProxy implements InvocationHandler {
 
 			if(annotation.methodName().equals("write")) {
 				obj.jvnLockWrite();
-				result = method.invoke((Sentence) obj.jvnGetSharedObject(), args);	
+				System.out.println("Appel à la méthode write ");		
+				result = method.invoke(obj.jvnGetSharedObject(), args);	
 				obj.jvnUnLock();
 			}
 			else if(annotation.methodName().equals("read")) {
 				obj.jvnLockRead();
-				result = method.invoke((Sentence) obj.jvnGetSharedObject(), args);
+				System.out.println("Appel à la méthode read ");
+				result = method.invoke(obj.jvnGetSharedObject(), args);
 				obj.jvnUnLock();
 			}
 		}
