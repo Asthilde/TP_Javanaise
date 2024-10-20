@@ -16,8 +16,6 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Map;
 
-import irc.Sentence;
-
 import java.io.*;
 
 
@@ -168,7 +166,7 @@ implements JvnLocalServer, JvnRemoteServer{
 				if(localObject == null) {
 					return null;
 				}
-				localObject = new JvnObjectImpl(((Sentence)localObject.jvnGetSharedObject()), localObject.jvnGetObjectId(), js);
+				localObject = new JvnObjectImpl(localObject.jvnGetSharedObject(), localObject.jvnGetObjectId(), js);
 				localObject.jvnChangeState(LockState.NL);
 				objectStore.put(localObject.jvnGetObjectId(), localObject);
 				nameRegistry.put(jon, localObject.jvnGetObjectId());
@@ -180,7 +178,7 @@ implements JvnLocalServer, JvnRemoteServer{
 				try {
 					JvnObject updatedObject = coordinator.jvnLookupObject(jon, js);
 					if (updatedObject != null) {
-						localObject = new JvnObjectImpl(((Sentence)updatedObject.jvnGetSharedObject()), updatedObject.jvnGetObjectId(), js);
+						localObject = new JvnObjectImpl(updatedObject.jvnGetSharedObject(), updatedObject.jvnGetObjectId(), js);
 						localObject.jvnChangeState(LockState.NL);
 						objectStore.put(id, localObject);
 					}
@@ -205,13 +203,11 @@ implements JvnLocalServer, JvnRemoteServer{
 		if (obj == null) {
 			throw new JvnException("Object not found in machine");
 		}
-		synchronized (obj) {
-			try {
-				JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
-				return updatedObject.jvnGetSharedObject();
-			} catch (Exception e) {
-				throw new JvnException("Error when requesting a read lock from the coordinator : " + e.getMessage());
-			}
+		try {
+			JvnObject updatedObject = (JvnObject) coordinator.jvnLockRead(joi, js);
+			return updatedObject.jvnGetSharedObject();
+		} catch (Exception e) {
+			throw new JvnException("Erreur lors de la demande de verrou en lecture au coordinateur : " + e.getMessage());
 		}
 	}
 
@@ -227,13 +223,11 @@ implements JvnLocalServer, JvnRemoteServer{
 		if (obj == null) {
 			throw new JvnException("Object not found in machine");
 		}
-		synchronized (obj) {
-			try {
-				JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
-				return updatedObject.jvnGetSharedObject();
-			} catch (Exception e) {
-				throw new JvnException("Error when requesting a write lock from the coordinator : " + e.getMessage());
-			}
+		try {
+			JvnObject updatedObject = (JvnObject) coordinator.jvnLockWrite(joi, js);
+			return updatedObject.jvnGetSharedObject();
+		} catch (Exception e) {
+			throw new JvnException("Erreur lors de la demande de verrou en écriture au coordinateur : " + e.getMessage());
 		}
 	}	
 
@@ -253,7 +247,7 @@ implements JvnLocalServer, JvnRemoteServer{
 		}
 		synchronized (obj) {
 			obj.jvnInvalidateReader();
-			obj.notify();
+			obj.notifyAll();
 		}
 	};
 
@@ -272,14 +266,8 @@ implements JvnLocalServer, JvnRemoteServer{
 			throw new JvnException("Object not found for ID : " + joi);
 		}
 		synchronized (obj) {
-			while(obj.jvnInvalidateWriter() != LockState.NL) {
-				try {
-					obj.wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			obj.notify();
+			obj.jvnInvalidateWriter();
+			obj.notifyAll();
 		}
 		return obj;
 	};
@@ -297,14 +285,8 @@ implements JvnLocalServer, JvnRemoteServer{
 			throw new JvnException("Object not found for ID : " + joi);
 		}
 		synchronized (obj) {
-			while(obj.jvnInvalidateWriterForReader() != LockState.R && obj.jvnInvalidateWriterForReader() != LockState.RC && obj.jvnInvalidateWriterForReader() != LockState.NL) {
-				try {
-					obj.wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			obj.notify();
+			obj.jvnInvalidateWriterForReader();
+			obj.notifyAll();
 		}
 		return obj;
 	};

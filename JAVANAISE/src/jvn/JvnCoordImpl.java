@@ -29,6 +29,7 @@ implements JvnRemoteCoord{
 	private static HashMap<Integer, JvnObject> objectsIdMap;
 	private static HashMap<String, Integer> objectsNameMap;
 	private static HashMap<Integer, HashMap<JvnRemoteServer, LockState>> objectsLockMap;
+	private static List<JvnRemoteServer> writeAskServers = new ArrayList<JvnRemoteServer>();
 
 
 	/**
@@ -135,11 +136,8 @@ implements JvnRemoteCoord{
 				if(currentLocks.containsValue(LockState.W)) {
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
-							JvnObject newObject;
-							synchronized(objFound) {
-								newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
-								objectsIdMap.put(joi, newObject);
-							}
+							JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriterForReader(joi);
+							objectsIdMap.put(joi, newObject);
 							currentLocks.put(server.getKey(), LockState.R);
 							currentLocks.put(js, LockState.R);
 							objectsLockMap.put(joi,currentLocks);
@@ -152,6 +150,9 @@ implements JvnRemoteCoord{
 					objectsLockMap.put(joi,currentLocks);
 					return objFound;
 				}
+			}
+			else if(currentLocks.get(js) != null) {
+				return objFound;
 			}
 		}
 		throw new JvnException("The object is not referenced in the coordinator");
@@ -169,19 +170,29 @@ implements JvnRemoteCoord{
 		JvnObject objFound = JvnCoordImpl.objectsIdMap.get(joi); 
 		if(objFound != null)
 		{
+			try {
+				writeAskServers.add(js);
+				while(writeAskServers.size() > 1) {
+					js.wait();
+				}
+				writeAskServers.remove(js);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 			HashMap<JvnRemoteServer, LockState> currentLocks = objectsLockMap.get(joi);
 			if(currentLocks.get(js) == LockState.NL || currentLocks.get(js) == null || currentLocks.get(js) == LockState.R) {
 				if(currentLocks.containsValue(LockState.W)) {
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.W) {
-							JvnObject newObject;
-							synchronized(objFound) {
-								newObject = (JvnObject) server.getKey().jvnInvalidateWriter(joi);
-								objectsIdMap.put(joi, newObject);
-							}
+							JvnObject newObject = (JvnObject) server.getKey().jvnInvalidateWriter(joi);
+							objectsIdMap.put(joi, newObject);
 							currentLocks.remove(server.getKey());
 							currentLocks.put(js, LockState.W);
 							objectsLockMap.put(joi,currentLocks);
+							
+							if(writeAskServers.size() > 0) {
+								writeAskServers.getFirst().notify();
+							}
 							return newObject;
 						}
 					}
@@ -190,10 +201,8 @@ implements JvnRemoteCoord{
 					List<JvnRemoteServer> serversTab = new ArrayList<JvnRemoteServer>();
 					for(Map.Entry<JvnRemoteServer, LockState> server : currentLocks.entrySet()) {
 						if(server.getValue() == LockState.R && server.getKey().hashCode() != js.hashCode()) {
-							synchronized(objFound) {
-								server.getKey().jvnInvalidateReader(joi);
-								serversTab.add(server.getKey());
-							}
+							server.getKey().jvnInvalidateReader(joi);
+							serversTab.add(server.getKey());
 						}
 					}
 					for(JvnRemoteServer server : serversTab) {
@@ -201,11 +210,19 @@ implements JvnRemoteCoord{
 					}
 					currentLocks.put(js, LockState.W);
 					objectsLockMap.put(joi,currentLocks);
+					
+					if(writeAskServers.size() > 0) {
+						writeAskServers.getFirst().notify();
+					}
 					return objFound;
 				}
 				else {
 					currentLocks.put(js, LockState.W);
 					objectsLockMap.put(joi,currentLocks);
+					
+					if(writeAskServers.size() > 0) {
+						writeAskServers.getFirst().notify();
+					}
 					return objFound;
 				}
 			}
