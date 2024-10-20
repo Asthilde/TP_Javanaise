@@ -14,14 +14,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import irc.Sentence;
-
 import java.io.Serializable;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.*;
-import java.rmi.server.*;
 
 
 public class JvnCoordImpl 	
@@ -158,7 +154,7 @@ implements JvnRemoteCoord{
 				}
 			}
 		}
-		throw new JvnException("L'objet n'est pas référencé dans le coordinateur");
+		throw new JvnException("The object is not referenced in the coordinator");
 	}
 
 	/**
@@ -214,7 +210,7 @@ implements JvnRemoteCoord{
 				}
 			}
 		}
-		throw new JvnException("L'objet n'est pas référencé dans le coordinateur");
+		throw new JvnException("The object is not referenced in the coordinator");
 	}
 
 	/**
@@ -225,7 +221,7 @@ implements JvnRemoteCoord{
 	public void jvnTerminate(JvnRemoteServer js)
 			throws java.rmi.RemoteException, JvnException {
 		if(objectsLockMap.isEmpty()) {
-			throw new JvnException("Le serveur JVN n'est pas connu par coordinateur");
+			throw new JvnException("JVN server not known by coordinator");
 		}
 		else {
 			for(Map.Entry<Integer, HashMap<JvnRemoteServer, LockState>> objectsMap : objectsLockMap.entrySet()) {
@@ -258,11 +254,10 @@ implements JvnRemoteCoord{
 			}
 			try {
 				registryHolder[0].lookup("Coordinator");
-				System.out.println("Le coordinateur est déja lié...");
 				registryHolder[0].unbind("Coordinator");
 			} catch (NotBoundException e) {}
 			registryHolder[0].bind("Coordinator", coordinator);
-			System.out.println("Coordinateur ready");
+			System.out.println("Coordinator ready");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

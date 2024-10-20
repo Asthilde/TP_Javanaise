@@ -56,6 +56,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			throw new JvnException("Erreur lors de la connexion au coordinateur : " + e.getMessage());
 		}
 	}
+	
 
 	/**
 	 * Static method allowing an application to get a reference to 
@@ -298,7 +299,7 @@ implements JvnLocalServer, JvnRemoteServer{
 			throws java.rmi.RemoteException,jvn.JvnException { 
 		JvnObject obj = objectStore.get(joi);
 		if (obj == null) {
-			throw new JvnException("Objet non trouvé pour ID : " + joi);
+			throw new JvnException("Object not found for ID: " + joi);
 		}
 		synchronized (obj) {
 			while(obj.jvnInvalidateWriterForReader() != LockState.R && obj.jvnInvalidateWriterForReader() != LockState.RC && obj.jvnInvalidateWriterForReader() != LockState.NL) {

@@ -16,7 +16,6 @@ public class JvnProxy implements InvocationHandler {
 		obj = js.jvnLookupObject("IRC");
 
 		if (obj == null) {
-			System.out.println("Objet non trouvé");
 			obj = js.jvnCreateObject(object);
 			obj.jvnUnLock();
 			js.jvnRegisterObject("IRC", obj);
@@ -32,13 +31,11 @@ public class JvnProxy implements InvocationHandler {
 
 			if(annotation.methodName().equals("write")) {
 				obj.jvnLockWrite();
-				System.out.println("Appel à la méthode write pour écrire : " + ((String) args[0]));		
 				result = method.invoke((Sentence) obj.jvnGetSharedObject(), args);	
 				obj.jvnUnLock();
 			}
 			else if(annotation.methodName().equals("read")) {
 				obj.jvnLockRead();
-				System.out.println("Appel à la méthode read pour lire : " + ((Sentence) obj.jvnGetSharedObject()).read());
 				result = method.invoke((Sentence) obj.jvnGetSharedObject(), args);
 				obj.jvnUnLock();
 			}

@@ -43,7 +43,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	@Override
 	public synchronized void jvnUnLock() throws JvnException {
 		if (lockState == LockState.NL) {
-			throw new JvnException("La machine courante ne détient pas de verrou sur l'objet.");
+			throw new JvnException("The current machine does not hold a lock on the object.");
 		} else if (lockState == LockState.W) {
 			lockState = LockState.WC;
 			this.notify();
@@ -61,7 +61,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	@Override
 	public Serializable jvnGetSharedObject() throws JvnException {
 		if (object == null) {
-			throw new JvnException("L'objet partagé n'est pas instancié !");
+			throw new JvnException("The shared object is not instantiated!");
 		}
 		return object;
 	}
@@ -69,7 +69,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	@Override
 	public synchronized void jvnInvalidateReader() throws JvnException {
 		if (lockState == LockState.W || lockState == LockState.WC || lockState == LockState.RWC) {
-			throw new JvnException("L'objet n'est pas verrouillé en lecture sur cette machine !");
+			throw new JvnException("The object is not read-locked on this machine!");
 		}
 		while (lockState == LockState.R) {
 			try {
@@ -84,7 +84,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	@Override
 	public synchronized Serializable jvnInvalidateWriter() throws JvnException {
 		if (lockState == LockState.R) {
-			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
+			throw new JvnException("The object is not read-locked on this machine!");
 		}
 		while (lockState == LockState.W) {
 			try {
@@ -100,7 +100,7 @@ public class JvnObjectImpl implements JvnObject, Serializable {
 	@Override
 	public synchronized Serializable jvnInvalidateWriterForReader() throws JvnException {
 		if (lockState == LockState.R) {
-			throw new JvnException("L'objet n'est pas verrouillé en écriture sur cette machine !");
+			throw new JvnException("The object is not write-locked on this machine!");
 		}
 		while (lockState == LockState.W) {
 			try {
