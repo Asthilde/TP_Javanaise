@@ -1,6 +1,5 @@
 package Compteur;
 
-import jvn.JvnException;
 import jvn.JvnObject;
 import jvn.JvnServerImpl;
 
