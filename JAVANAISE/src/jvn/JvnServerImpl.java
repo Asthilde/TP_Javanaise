@@ -98,8 +98,6 @@ implements JvnLocalServer, JvnRemoteServer{
 					}
 				}
 			}
-			nameRegistry.clear();
-			objectStore.clear();
 			coordinator.jvnTerminate(js);
 		} catch (RemoteException e) {
 			throw new JvnException("Erreur lors de la terminaison : " + e.getMessage());
