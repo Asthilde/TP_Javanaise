@@ -12,5 +12,9 @@ Les fonctionnalités de verrouillage, déverrouillage du verrou sur l'objet d'in
 Aucune fonctionnalités "bonus" n'a été implémentée, un tentative de résolution de l'interblocage a eu lieu mais n'est pas totalement fonctionnelle.
 
 ## Tests
-Le test fourni initialement est fonctionnel est lancé avec un à 100 objets IRC.
-Un test burst a été crée avec un classe Compteur et un lancement en boucle de plusieurs JVM essayant successivement de lire et écrire sur un objet compteur commun.
+Le test fourni initialement est fonctionnel et peut être lancé avec un à 50 objets IRC.
+Nous avons deux manières de lancer les tests:
+1- Dans eclipse il faut lancer en premier la classe JvnCoordImpl pour mettre le coordinateur en marche puis la classe IRC pour lancer l'application de chat. 
+2- Si vous souhaiter lancer les 50 applications en même temps il faut exécuter le fichier jar du JvnCoordImpl et lancer par la suite le script ./app/testBurst.sh
+Un test burst a été crée avec un classe Compteur et un lancement en boucle de plusieurs JVM essayant successivement de lire et écrire sur un objet compteur commun.Dans ce cas il faut lancer la classe JvnCoordImpl pour mettre le coordinateur en marche puis la classe Main qui contient le test.
+
